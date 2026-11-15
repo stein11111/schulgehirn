@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2f5bff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Schule">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Schul-Gehirn</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f2ea;--card:#fffdf8;--card2:#efeadf;--ink:#1c1a15;--muted:#6f695c;--line:#e3dccd;
+  --accent:#2f5bff;--accent-ink:#fff;--danger:#d93a2b;--ok:#1f9d63;--warn:#e08a00;
+  --shadow:0 1px 2px rgba(40,30,10,.06),0 4px 14px rgba(40,30,10,.06);
+  --r:18px;--safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#121110;--card:#1d1c19;--card2:#272520;--ink:#f2eee6;--muted:#a19b8e;--line:#2f2d27;
+  --accent:#6f8bff;--shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25)}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 Inter,system-ui,-apple-system,sans-serif}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;width:100%;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:120px}
+h1,h2,h3{font-family:"Bricolage Grotesque",Inter,sans-serif;margin:0;letter-spacing:-.01em}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px}
+header#top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding-top:var(--safe-t)}
+header#top .wrap{display:flex;align-items:center;gap:10px;height:58px}
+.logo{display:flex;align-items:center;gap:9px;font-family:"Bricolage Grotesque";font-weight:800;font-size:21px}
+.logo i{width:30px;height:30px;border-radius:9px;background:var(--accent);display:grid;place-items:center;font-style:normal;font-size:17px}
+.sp{flex:1}
+.iconbtn{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:var(--card);box-shadow:var(--shadow)}
+.iconbtn svg{width:21px;height:21px}
+main{padding-bottom:calc(110px + var(--safe-b))}
+section.blk{margin:18px 0 8px}
+.blk h2{font-size:19px;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.blk h2 small{font:500 13px Inter;color:var(--muted);margin-left:auto}
+.hello h1{font-size:30px;font-weight:800;line-height:1.1;margin-top:6px}
+.hello p{margin:4px 0 0;color:var(--muted)}
+.quick{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
+.qbtn{background:var(--card);border-radius:var(--r);padding:14px 10px;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;gap:6px;font-weight:600;font-size:14px}
+.qbtn .em{font-size:26px}
+.qbtn.main{background:var(--accent);color:var(--accent-ink)}
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow)}
+.empty{color:var(--muted);padding:18px;text-align:center;font-size:15px}
+.warn{background:#fff3d6;color:#6b4800;border-radius:14px;padding:12px 14px;margin-top:12px;font-size:14px}
+@media (prefers-color-scheme:dark){.warn{background:#3a2d0c;color:#ffd98a}}
+.hint{background:var(--card2);border-radius:14px;padding:12px 14px;font-size:14px;color:var(--muted);display:flex;gap:10px;align-items:center}
+.hint b{color:var(--ink)}
+.hint button{margin-left:auto;background:var(--ink);color:var(--bg);padding:8px 12px;border-radius:10px;font-weight:600;font-size:13px;white-space:nowrap}
+
+/* schedule */
+.day{padding:6px}
+.lesson{display:flex;align-items:stretch;gap:12px;padding:10px;border-radius:14px;width:100%;text-align:left}
+.lesson:active{background:var(--card2)}
+.lesson .t{font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted);width:46px;flex:none;padding-top:2px;line-height:1.3}
+.lesson .bar{width:5px;border-radius:4px;flex:none}
+.lesson .info{flex:1;min-width:0}
+.lesson .nm{font-weight:700}
+.lesson .sub{font-size:13px;color:var(--muted)}
+.lesson .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.badge{font-size:12px;font-weight:600;padding:3px 8px;border-radius:99px;background:var(--card2);color:var(--muted)}
+.badge.red{background:color-mix(in srgb,var(--danger) 16%,transparent);color:var(--danger)}
+.badge.blue{background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent)}
+.lesson.now{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+
+/* grids */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.item{display:flex;flex-direction:column;text-align:left;overflow:hidden}
+.item .thumb{aspect-ratio:4/3;background:var(--card2);overflow:hidden;position:relative}
+.item .thumb img{width:100%;height:100%;object-fit:cover;object-position:top}
+.item .thumb .pages{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;font-weight:600;padding:2px 7px;border-radius:99px}
+.item .thumb.note{padding:12px;font-size:13px;color:var(--muted);line-height:1.4;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;background:color-mix(in srgb,#ffd84a 22%,var(--card))}
+.item .thumb .ai{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:2px 7px;border-radius:99px}
+.item .meta{font-size:12px;color:var(--muted);padding:10px 12px 0;display:flex;align-items:center;gap:6px}
+.item .ititle{font-weight:600;padding:2px 12px 12px;font-size:15px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.dot{width:9px;height:9px;border-radius:50%;flex:none;display:inline-block}
+
+/* folders */
+.folders{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-top:22px}
+.folder{position:relative;text-align:left;padding:16px 14px 14px;border-radius:4px 16px 16px 16px;color:#fff;min-height:118px;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.folder::before{content:"";position:absolute;left:0;top:-12px;width:58%;height:16px;background:inherit;border-radius:10px 14px 0 0;filter:brightness(.9)}
+.folder .fe{font-size:26px}
+.folder .fn{font-family:"Bricolage Grotesque";font-weight:800;font-size:20px;margin-top:auto;line-height:1.1}
+.folder .ff{font-size:12px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.folder .fc{font-size:12px;opacity:.95;margin-top:6px;font-weight:600}
+.folder.add{background:transparent;color:var(--muted);border:2px dashed var(--line);box-shadow:none;align-items:center;justify-content:center;gap:4px;border-radius:16px}
+.folder.add::before{display:none}
+
+.shead{display:flex;align-items:center;gap:12px;margin-top:10px;padding:16px;border-radius:var(--r);color:#fff}
+.shead .fe{font-size:34px}
+.shead h1{font-size:24px;font-weight:800;line-height:1.1}
+.shead p{margin:2px 0 0;font-size:13px;opacity:.92}
+.shead .iconbtn{background:rgba(255,255,255,.2);box-shadow:none;color:#fff;margin-left:auto;flex:none}
+.tabs{display:flex;gap:6px;margin:14px 0;overflow-x:auto;scrollbar-width:none}
+.tabs button{padding:8px 14px;border-radius:99px;background:var(--card);font-weight:600;font-size:14px;white-space:nowrap;box-shadow:var(--shadow)}
+.tabs button.on{background:var(--ink);color:var(--bg)}
+
+/* binder */
+.rtabs{display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;margin:14px -16px 0;padding:10px 16px 0;align-items:flex-end}
+.rtabs::-webkit-scrollbar,.topics::-webkit-scrollbar,.tabs::-webkit-scrollbar{display:none}
+.rtab{flex:none;padding:10px 15px 14px;margin-bottom:-6px;border-radius:14px 14px 0 0;background:color-mix(in srgb,var(--c) 26%,var(--card2));color:var(--ink);font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px;transition:transform .2s,background .2s,padding .2s;white-space:nowrap}
+.rtab .n{font:700 11px Inter;background:rgba(0,0,0,.14);padding:1px 6px;border-radius:99px}
+.rtab.on{background:var(--c);color:#fff;padding-bottom:20px;transform:translateY(-4px);box-shadow:0 -6px 14px rgba(0,0,0,.07)}
+.rtab.on .n{background:rgba(255,255,255,.28)}
+.rtab.plus{background:transparent;border:2px dashed var(--line);border-bottom:0;color:var(--muted);padding:8px 13px 12px}
+.fbody{position:relative;z-index:1;background:var(--card);border-radius:4px 22px 22px 22px;border-top:7px solid var(--c);box-shadow:var(--shadow);padding:18px 16px 22px;min-height:62vh;animation:fin .22s ease}
+@keyframes fin{from{opacity:.4;transform:translateY(6px)}}
+.fhead{display:flex;gap:12px;align-items:center}
+.fhead .big{width:58px;height:58px;border-radius:17px;background:color-mix(in srgb,var(--c) 17%,transparent);display:grid;place-items:center;font-size:31px;flex:none}
+.fhead h1{font-size:27px;font-weight:800;line-height:1.05}
+.fhead p{margin:3px 0 0;color:var(--muted);font-size:13px;line-height:1.35}
+.fhead .iconbtn{margin-left:auto;flex:none;align-self:flex-start;background:var(--card2);box-shadow:none}
+.dropz{margin-top:16px;border:2px dashed color-mix(in srgb,var(--c) 50%,var(--line));border-radius:20px;padding:12px;background:color-mix(in srgb,var(--c) 6%,transparent);transition:.15s}
+.dropz.over{background:color-mix(in srgb,var(--c) 20%,transparent);transform:scale(1.01)}
+.dropz .acts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.dropz .acts button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:12px 2px;border-radius:15px;background:var(--card);font-size:12.5px;font-weight:600;box-shadow:var(--shadow)}
+.dropz .acts button.prim{background:var(--c);color:#fff}
+.dropz .acts .em{font-size:23px}
+.dropz small{display:block;text-align:center;color:var(--muted);margin-top:9px;font-size:12px}
+.topics{display:flex;gap:8px;overflow-x:auto;margin:16px -16px 0;padding:2px 16px 4px;scrollbar-width:none}
+.topic{flex:none;display:flex;align-items:center;gap:7px;padding:9px 13px;border-radius:13px;background:var(--card2);font-weight:600;font-size:14px;white-space:nowrap}
+.topic svg{width:17px;height:17px}
+.topic .n{font-size:11px;opacity:.65}
+.topic.on{background:var(--ink);color:var(--bg)}
+.topic.add{background:transparent;border:1.5px dashed var(--line);color:var(--muted)}
+.ftabs{display:flex;gap:4px;background:var(--card2);padding:4px;border-radius:13px;margin:14px 0 4px}
+.ftabs button{flex:1;padding:8px 2px;border-radius:10px;font-weight:600;font-size:13px;color:var(--muted)}
+.ftabs button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.fbody .card{box-shadow:none;background:var(--bg)}
+.fbody .item{background:var(--bg)}
+.swipehint{text-align:center;color:var(--muted);font-size:12px;margin-top:14px}
+.install{display:flex;align-items:center;gap:12px;padding:14px;border-radius:var(--r);background:linear-gradient(120deg,var(--accent),#7b4dff);color:#fff;margin-top:14px}
+.install .em{font-size:28px}
+.install b{display:block}.install small{opacity:.9}
+.install button{margin-left:auto;background:#fff;color:#2f2fff;font-weight:700;padding:9px 14px;border-radius:11px;white-space:nowrap}
+.install .x{background:transparent;color:#fff;padding:4px 6px;margin-left:0}
+.kbox{padding:14px}
+.kbox a{color:var(--accent);font-weight:600}
+.kstat{font-size:13px;margin-top:8px;color:var(--muted)}
+
+/* tasks */
+.tasks{padding:4px 0}
+.task{display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.task:last-child{border-bottom:0}
+.check{width:26px;height:26px;border-radius:9px;border:2px solid var(--line);flex:none;display:grid;place-items:center;transition:.15s}
+.check svg{width:16px;height:16px;opacity:0}
+.task.done .check{background:var(--ok);border-color:var(--ok);color:#fff}
+.task.done .check svg{opacity:1}
+.task.done .tt{text-decoration:line-through;color:var(--muted)}
+.task .tbody{flex:1;min-width:0;text-align:left}
+.task .tt{font-weight:600;line-height:1.3}
+.task .ts{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-top:2px}
+.due{font-size:12px;font-weight:700;padding:3px 8px;border-radius:99px;background:var(--card2);white-space:nowrap}
+.due.over{background:color-mix(in srgb,var(--danger) 15%,transparent);color:var(--danger)}
+.due.today{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.glabel{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:20px 4px 8px}
+details summary{cursor:pointer;color:var(--muted);font-weight:600;margin:18px 4px 8px;font-size:14px}
+
+/* nav */
+nav#nav{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:0 12px calc(10px + var(--safe-b))}
+nav#nav .bar{max-width:520px;margin:0 auto;display:flex;background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-radius:24px;box-shadow:0 6px 30px rgba(0,0,0,.18);padding:6px}
+nav#nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 0;border-radius:18px;font-size:11px;font-weight:600;color:var(--muted)}
+nav#nav button svg{width:23px;height:23px}
+nav#nav button.on{color:var(--ink);background:var(--card2)}
+#fab{position:fixed;right:max(18px,calc(50% - 362px));bottom:calc(92px + var(--safe-b));z-index:31;width:60px;height:60px;border-radius:20px;background:var(--accent);color:#fff;display:grid;place-items:center;box-shadow:0 8px 24px color-mix(in srgb,var(--accent) 45%,transparent)}
+#fab svg{width:28px;height:28px}
+
+/* detail */
+#detail{position:fixed;inset:0;z-index:40;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;animation:slide .22s ease}
+@keyframes slide{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
+#detail .dh{position:sticky;top:0;z-index:2;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding-top:var(--safe-t)}
+#detail .dh .wrap{display:flex;align-items:center;gap:10px;height:58px}
+#detail .dh .lbl{font-weight:700;color:var(--muted);font-size:14px}
+.dbody{padding-bottom:calc(60px + var(--safe-b))}
+.ttl{font-family:"Bricolage Grotesque";font-weight:800;font-size:24px;border:0;background:transparent;padding:6px 0;border-radius:0;border-bottom:1.5px solid transparent}
+.ttl:focus{border-bottom-color:var(--accent)}
+.row{display:flex;gap:10px;margin-top:10px}
+.row>*{flex:1}
+label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-top:14px}
+label>input,label>select,label>textarea{margin-top:6px}
+.pages{display:flex;flex-direction:column;gap:14px;margin-top:18px}
+.page{background:var(--card);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
+.page img{width:100%;display:block;min-height:120px;background:var(--card2);cursor:zoom-in}
+.ptools{display:flex;align-items:center;gap:4px;padding:6px 8px;font-size:13px;color:var(--muted)}
+.ptools button{padding:7px 10px;border-radius:10px;font-weight:600}
+.ptools button:active{background:var(--card2)}
+.addpage{display:flex;gap:10px;margin-top:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;border-radius:14px;font-weight:600;background:var(--card);box-shadow:var(--shadow);flex:1}
+.btn.primary,.primary{background:var(--accent);color:#fff;box-shadow:none}
+.btn.danger{color:var(--danger)}
+.btn.ghost{background:transparent;box-shadow:none;border:1.5px solid var(--line)}
+.btn:disabled{opacity:.5}
+.aibox{margin-top:18px;padding:16px;border-radius:var(--r);background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 14%,var(--card)),var(--card));box-shadow:var(--shadow)}
+.aibox h3{font-size:17px;display:flex;align-items:center;gap:8px}
+.aibox p{margin:8px 0 0}
+.aibox .btn{margin-top:12px;width:100%}
+.transcript{white-space:pre-wrap;font-size:14px;background:var(--card);border-radius:12px;padding:12px;margin-top:8px;max-height:420px;overflow:auto}
+.found{margin-top:12px}
+.found .f{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card);border-radius:12px;margin-top:6px;font-size:14px}
+.found .f span{flex:1}
+.found .f button{background:var(--accent);color:#fff;padding:6px 10px;border-radius:9px;font-weight:600;font-size:13px}
+.tagrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.tag{font-size:12px;font-weight:600;padding:4px 10px;border-radius:99px;background:var(--card2);color:var(--muted)}
+.answer{margin-top:12px;background:var(--card);border-radius:12px;padding:12px 14px;font-size:15px}
+.answer p{margin:.4em 0}.answer ul,.answer ol{margin:.3em 0;padding-left:1.3em}
+.ref{display:inline-flex;align-items:center;gap:4px;background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);font-weight:600;font-size:13px;padding:2px 8px;border-radius:8px;margin:1px 2px}
+.inline-ask{display:flex;gap:8px;margin-top:12px}
+.inline-ask input{flex:1}
+.inline-ask button{background:var(--accent);color:#fff;border-radius:12px;padding:0 16px;font-weight:600}
+.bigcheck{display:flex;align-items:center;gap:12px;padding:14px;background:var(--card);border-radius:14px;margin-top:14px;width:100%;font-weight:600;box-shadow:var(--shadow)}
+.task.done .bigcheck{}
+
+/* modal */
+#modal{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;justify-content:center}
+#modal[hidden]{display:none}
+.mbg{position:absolute;inset:0;background:rgba(0,0,0,.45);animation:fade .2s}
+@keyframes fade{from{opacity:0}}
+.mbox{position:relative;width:100%;max-width:560px;background:var(--bg);border-radius:24px 24px 0 0;padding:20px 18px calc(20px + var(--safe-b));max-height:92vh;overflow-y:auto;animation:up .22s ease}
+@media (min-width:640px){#modal{align-items:center}.mbox{border-radius:24px}}
+@keyframes up{from{transform:translateY(40px);opacity:.4}}
+.mbox h3{font-size:21px;font-weight:800;margin-bottom:4px}
+.mbox .primary{width:100%;padding:14px;border-radius:14px;font-weight:700;margin-top:18px}
+.mbox .sub{color:var(--muted);font-size:14px;margin:0}
+.sheetbtn{display:flex;align-items:center;gap:14px;width:100%;padding:14px;background:var(--card);border-radius:16px;margin-top:10px;text-align:left;box-shadow:var(--shadow)}
+.sheetbtn .em{font-size:26px;width:44px;height:44px;border-radius:13px;display:grid;place-items:center;background:var(--card2)}
+.sheetbtn b{display:block}.sheetbtn small{color:var(--muted)}
+.seg{display:flex;background:var(--card2);border-radius:14px;padding:4px;margin-top:14px}
+.seg button{flex:1;padding:10px;border-radius:11px;font-weight:600;font-size:14px;color:var(--muted)}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.chips button{padding:8px 12px;border-radius:99px;background:var(--card);font-size:14px;font-weight:600;box-shadow:var(--shadow)}
+.chips button.on{background:var(--ink);color:var(--bg)}
+.swatches{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+.swatches button{width:34px;height:34px;border-radius:50%;border:3px solid transparent}
+.swatches button.on{border-color:var(--ink)}
+.emojis{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.emojis button{width:40px;height:40px;border-radius:11px;background:var(--card);font-size:21px}
+.emojis button.on{outline:2.5px solid var(--accent)}
+.chk{display:flex;align-items:center;gap:10px;color:var(--ink);font-size:15px;font-weight:500}
+.chk input{width:20px;height:20px;margin:0}
+.mrow{display:flex;gap:10px;margin-top:18px}
+.mrow .primary{margin-top:0}
+.zoomwrap{overflow:auto;max-height:78vh;border-radius:12px;background:#000;touch-action:pan-x pan-y pinch-zoom}
+.zoomwrap img{display:block;width:100%}
+
+/* chat */
+.chat{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+.msg{max-width:90%;padding:12px 14px;border-radius:18px;font-size:15px}
+.msg.user{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:6px}
+.msg.ai{align-self:flex-start;background:var(--card);box-shadow:var(--shadow);border-bottom-left-radius:6px}
+.msg.ai p{margin:.35em 0}.msg.ai ul,.msg.ai ol{margin:.3em 0;padding-left:1.3em}
+.askbar{position:sticky;bottom:calc(84px + var(--safe-b));display:flex;gap:8px;margin-top:16px;background:var(--bg);padding:8px 0}
+.askbar textarea{min-height:48px;max-height:140px;flex:1;resize:none;padding:12px 14px}
+.askbar button{background:var(--accent);color:#fff;border-radius:14px;width:52px;flex:none;display:grid;place-items:center}
+.askbar button svg{width:22px;height:22px}
+.sugg{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.sugg button{background:var(--card);padding:9px 13px;border-radius:14px;font-size:14px;box-shadow:var(--shadow);text-align:left}
+
+/* search */
+.sres{display:flex;gap:12px;align-items:center;padding:12px;width:100%;text-align:left;border-bottom:1px solid var(--line)}
+.sres:last-child{border-bottom:0}
+.sres .st{width:52px;height:52px;border-radius:10px;background:var(--card2);flex:none;overflow:hidden;display:grid;place-items:center;font-size:22px}
+.sres .st img{width:100%;height:100%;object-fit:cover}
+.sres .sb{flex:1;min-width:0}
+.sres .sn{font-weight:600}
+.sres .ss{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+mark{background:#ffe066;color:#000;border-radius:3px;padding:0 1px}
+
+/* more */
+.list{overflow:hidden}
+.li{display:flex;align-items:center;gap:12px;padding:14px;width:100%;text-align:left;border-bottom:1px solid var(--line)}
+.li:last-child{border-bottom:0}
+.li .em{font-size:22px;width:28px;text-align:center}
+.li .lt{flex:1}.li .lt small{display:block;color:var(--muted);font-size:13px}
+.li.danger{color:var(--danger)}
+.tt-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:14px}
+.tt-row:last-child{border-bottom:0}
+.tt-row .x{margin-left:auto;color:var(--muted);padding:6px}
+
+#toast{position:fixed;left:50%;bottom:calc(100px + var(--safe-b));transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:11px 18px;border-radius:14px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:90;max-width:90vw;text-align:center}
+#toast.on{opacity:1;transform:translateX(-50%)}
+#busy{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:14px;font-weight:600}
+#busy[hidden]{display:none}
+.spin{width:44px;height:44px;border-radius:50%;border:4px solid rgba(255,255,255,.25);border-top-color:#fff;animation:sp 0.8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.think{display:inline-flex;gap:4px}.think i{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:bl 1s infinite}.think i:nth-child(2){animation-delay:.15s}.think i:nth-child(3){animation-delay:.3s}
+@keyframes bl{50%{opacity:.25}}
+.drop{position:fixed;inset:0;z-index:95;background:color-mix(in srgb,var(--accent) 80%,transparent);color:#fff;display:none;place-items:center;font:800 26px "Bricolage Grotesque"}
+.drop.on{display:grid}
+</style>
+</head>
+<body>
+<header id="top"><div class="wrap">
+  <div class="logo"><i>🧠</i>Schul-Gehirn</div>
+  <div class="sp"></div>
+  <button class="iconbtn" data-act="go" data-v="search" aria-label="Suchen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+</div></header>
+<main><div class="wrap" id="main"></div></main>
+
+<button id="fab" data-act="add" aria-label="Hinzufügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+
+<nav id="nav"><div class="bar">
+  <button data-act="go" data-v="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"/></svg>Start</button>
+  <button data-act="go" data-v="subjects"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Mappen</button>
+  <button data-act="go" data-v="tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>Aufgaben</button>
+  <button data-act="go" data-v="ask"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>Frag</button>
+  <button data-act="go" data-v="more"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>Mehr</button>
+</div></nav>
+
+<section id="detail" hidden></section>
+<div id="modal" hidden><div class="mbg" data-act="mclose"></div><div class="mbox" id="mbox"></div></div>
+<div id="toast"></div>
+<div id="busy" hidden><div class="spin"></div><div id="busyT">Moment…</div></div>
+<div class="drop" id="drop">Loslassen zum Hinzufügen 📄</div>
+<input type="file" id="camIn" accept="image/*" capture="environment" hidden>
+<input type="file" id="fileIn" accept="image/*,application/pdf,.pdf" multiple hidden>
+<input type="file" id="bakIn" accept=".json,application/json" hidden>
+
+<script>
+"use strict";
+/* ================= Helpers ================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const pad = n => String(n).padStart(2, "0");
+const isoOf = d => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+const today = () => isoOf(new Date());
+const addDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return isoOf(d); };
+function daysUntil(iso){ const [y,m,d] = iso.split("-").map(Number); const t = new Date(y, m-1, d); const n = new Date(); n.setHours(0,0,0,0); return Math.round((t - n) / 864e5); }
+function fmtDue(iso){
+  const n = daysUntil(iso);
+  if (n < -1) return "vor " + (-n) + " Tagen"; if (n === -1) return "gestern";
+  if (n === 0) return "heute"; if (n === 1) return "morgen";
+  const d = new Date(iso + "T12:00");
+  if (n < 7) return d.toLocaleDateString("de-DE", {weekday:"long"});
+  return d.toLocaleDateString("de-DE", {day:"numeric", month:"short"});
+}
+const fmtDate = ts => new Date(ts).toLocaleDateString("de-DE", {day:"numeric", month:"short"});
+const DAYS = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
+const COLORS = ["#e5533d","#f09a1a","#1f9d63","#2f6bff","#8b5cf6","#e0457b","#0e9f9a","#64748b","#b7791f","#475569"];
+const EMOJIS = ["💻","🔧","💼","🗣️","⚖️","🧮","🌍","📘","🧪","⚽","🎨","✝️","📊","🛠️","📝","🔌"];
+const INBOX = {id:"inbox", short:"Unsortiert", full:"Noch keinem Fach zugeordnet", emoji:"📥", color:"#8a8f98"};
+const ICON = {
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
+  back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+  edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>',
+  folder:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+  send:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>'
+};
+
+/* ================= State & Storage ================= */
+const S = { view:"home", subjectId:null, topicId:"all", tab:"all", gkey:"", query:"", openId:null, subjects:[], items:[], timetable:[], chat:[], asking:false, askScope:"all", lastBackup:0, warn:"", addTarget:null };
+let db = null, idbOK = true;
+const mem = {subjects:new Map(), items:new Map(), blobs:new Map(), meta:new Map()};
+function openDB(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open("schulgehirn", 1);
+    r.onupgradeneeded = () => { const d = r.result; ["subjects","items","blobs"].forEach(n => d.createObjectStore(n, {keyPath:"id"})); d.createObjectStore("meta", {keyPath:"k"}); };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); r.onblocked = () => rej(new Error("blocked"));
+  });
+}
+const rq = r => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+const os = (s, m="readonly") => db.transaction(s, m).objectStore(s);
+const store = {
+  all: s => idbOK ? rq(os(s).getAll()) : Promise.resolve([...mem[s].values()]),
+  get: (s, k) => idbOK ? rq(os(s).get(k)) : Promise.resolve(mem[s].get(k)),
+  put: (s, v) => idbOK ? rq(os(s, "readwrite").put(v)) : (mem[s].set(v.id ?? v.k, v), Promise.resolve()),
+  del: (s, k) => idbOK ? rq(os(s, "readwrite").delete(k)) : (mem[s].delete(k), Promise.resolve()),
+  clear: s => idbOK ? rq(os(s, "readwrite").clear()) : (mem[s].clear(), Promise.resolve())
+};
+const setMeta = (k, v) => store.put("meta", {k, v}).catch(()=>{});
+const getMeta = async k => { try { return (await store.get("meta", k))?.v; } catch { return undefined; } };
+let persisted = false;
+function persistOnce(){ if (persisted) return; persisted = true; try { navigator.storage?.persist?.().catch(()=>{}); } catch {} }
+
+const subj = id => S.subjects.find(s => s.id === id) || INBOX;
+const item = id => S.items.find(i => i.id === id);
+const allSubjects = () => [...S.subjects].sort((a,b) => (a.order ?? 0) - (b.order ?? 0));
+
+/* --- Seed from Stundenplan --- */
+function seed(){
+  const mk = (id, short, full, emoji, color, order) => ({id, short, full, emoji, color, order, created:Date.now()});
+  S.subjects = [
+    mk("gitd","GITD","Lernfeld-Fach (bei ÖZ & HP)","💻","#2f6bff",1),
+    mk("st","ST","Fach bei ÖZ","🔧","#0e9f9a",2),
+    mk("wbl","WBL","Wirtschafts- und Betriebslehre","💼","#f09a1a",3),
+    mk("dk","DK","Deutsch / Kommunikation","🗣️","#e5533d",4),
+    mk("pog","POG","Politik / Gesellschaftslehre","⚖️","#8b5cf6",5)
+  ];
+  S.timetable = [
+    {id:uid(), day:1, start:"07:30", end:"09:00", subjectId:"gitd", teacher:"ÖZ", room:"F 118"},
+    {id:uid(), day:1, start:"09:15", end:"10:45", subjectId:"st", teacher:"ÖZ", room:"F 118"},
+    {id:uid(), day:1, start:"11:00", end:"12:30", subjectId:"gitd", teacher:"HP", room:"D 217"},
+    {id:uid(), day:3, start:"07:30", end:"09:00", subjectId:"wbl", teacher:"TU", room:"D 216"},
+    {id:uid(), day:3, start:"09:15", end:"10:45", subjectId:"dk", teacher:"HEI", room:"C 103"},
+    {id:uid(), day:3, start:"11:00", end:"12:30", subjectId:"pog", teacher:"SHD", room:"C 103"}
+  ];
+}
+async function saveSubjects(){ for (const s of S.subjects) await store.put("subjects", s); }
+const saveTT = () => setMeta("timetable", S.timetable);
+
+const saveTimers = {};
+function saveItemSoon(it){ clearTimeout(saveTimers[it.id]); saveTimers[it.id] = setTimeout(() => { store.put("items", it).catch(e => toast("Speichern fehlgeschlagen")); delete saveTimers[it.id]; }, 350); }
+function flushSaves(){ for (const id in saveTimers){ clearTimeout(saveTimers[id]); const it = item(id); if (it) store.put("items", it).catch(()=>{}); delete saveTimers[id]; } }
+async function saveItem(it){ it.updated = Date.now(); await store.put("items", it); persistOnce(); }
+
+function newItem(type, extra = {}){
+  const inBinder = S.view === "subjects" && S.subjectId;
+  const it = {id:uid(), type, subjectId: inBinder ? S.subjectId : "inbox", topicId: inBinder && S.topicId !== "all" ? S.topicId : "", title:"", text:"", tags:[], pages:[], created:Date.now(), updated:Date.now(), done:false, due:"", transcript:"", summary:"", thumb:"", ...extra};
+  S.items.push(it); store.put("items", it).catch(()=>{}); persistOnce(); return it;
+}
+async function deleteItem(it){
+  for (const p of it.pages || []) { await store.del("blobs", p).catch(()=>{}); dropUrl(p); }
+  await store.del("items", it.id); S.items = S.items.filter(x => x.id !== it.id);
+}
+
+/* --- blob urls --- */
+const urlCache = new Map();
+async function getBlob(id){ const r = await store.get("blobs", id); return r?.blob; }
+async function urlFor(id){ if (urlCache.has(id)) return urlCache.get(id); const b = await getBlob(id); if (!b) return ""; const u = URL.createObjectURL(b); urlCache.set(id, u); return u; }
+function dropUrl(id){ const u = urlCache.get(id); if (u) { URL.revokeObjectURL(u); urlCache.delete(id); } }
+
+/* ================= Capabilities (inside Claude) ================= */
+let SAMPLE = null, DL = null, IMG = null;
+async function initCaps(){
+  if (!window.claude || typeof window.claude.use !== "function") return;
+  const [dl, sm] = await Promise.all([claude.use("downloads").catch(()=>null), claude.use("sample").catch(()=>null)]);
+  DL = dl; SAMPLE = sm;
+  if (SAMPLE) { try { const l = await SAMPLE.limits(); IMG = l?.images || null; } catch { IMG = null; } }
+  render(); if (S.openId) renderDetail();
+}
+function aiErr(e){
+  const c = e?.code;
+  if (c === "not_granted" || c === "sampling_disabled" || c === "not_declared" || c === "capability_disabled") { SAMPLE = null; render(); return "KI ist hier nicht erlaubt."; }
+  if (c === "rate_limited") return "Gerade zu viele Anfragen – versuch es gleich nochmal.";
+  if (c === "session_expired") return "Bitte bei Claude neu anmelden.";
+  if (c === "cancelled") return "";
+  if (c === "image_rejected") return "Das Bild konnte nicht gelesen werden.";
+  if (c === "invalid_json") return "Die Antwort war unvollständig – nochmal versuchen.";
+  if (c === "bad_key") return "KI-Schlüssel ungültig – prüf ihn unter Mehr → KI.";
+  if (c === "offline") return "Keine Internetverbindung.";
+  return "Hat nicht geklappt – nochmal versuchen.";
+}
+
+/* ---- KI-Schicht: Claude (wenn in Claude geöffnet) oder Google Gemini mit eigenem Schlüssel ---- */
+const GURL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+const GMODELS = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-2.5-flash"];
+const AI = {
+  get on(){ return !!SAMPLE || !!S.gkey; },
+  get vision(){ return !!(SAMPLE && IMG) || (!SAMPLE && !!S.gkey); },
+  get maxImgs(){ return SAMPLE && IMG ? Math.min(IMG.maxCount || 5, 8) : 8; },
+  async json(prompt, {images} = {}){
+    if (SAMPLE) return SAMPLE.json(prompt, images && images.length ? {images} : {});
+    const t = await gemini([{role:"user", content:prompt}], {images, json:true});
+    return parseLooseJSON(t);
+  },
+  async text(input, {images, onText, signal} = {}){
+    if (SAMPLE){ const o = {cache:false, signal, onText}; if (images && images.length) o.images = images; return (await SAMPLE(input, o)).text; }
+    return gemini(typeof input === "string" ? [{role:"user", content:input}] : input, {images, onText, signal});
+  }
+};
+function parseLooseJSON(t){
+  try { return JSON.parse(t); } catch {}
+  const f = t.match(/```(?:json)?\s*([\s\S]*?)```/); if (f) { try { return JSON.parse(f[1]); } catch {} }
+  const a = t.indexOf("{"), b = t.lastIndexOf("}"); if (a >= 0 && b > a) { try { return JSON.parse(t.slice(a, b + 1)); } catch {} }
+  throw {code:"invalid_json", text:t};
+}
+async function shrinkForAI(blob){
+  try { const bmp = await createImageBitmap(blob); const s = Math.min(1, 1600 / Math.max(bmp.width, bmp.height)); const c = document.createElement("canvas"); c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s); c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height); return await canvasBlob(c, 0.82); } catch { return blob; }
+}
+async function gemini(messages, {images, json, onText, signal} = {}){
+  if (!navigator.onLine) throw {code:"offline"};
+  const msgs = messages.map(m => ({role:m.role, content:m.content}));
+  if (images && images.length){
+    const last = msgs[msgs.length - 1]; const parts = [{type:"text", text:last.content}];
+    for (const b of images) parts.push({type:"image_url", image_url:{url: await blobToDataURL(await shrinkForAI(b))}});
+    last.content = parts;
+  }
+  const order = [S.gmodel, ...GMODELS].filter((m, i, a) => m && a.indexOf(m) === i);
+  let lastErr = {code:"upstream_error"};
+  for (const model of order){
+    let res;
+    try { res = await fetch(GURL, {method:"POST", signal, headers:{"Authorization":"Bearer " + S.gkey, "Content-Type":"application/json"}, body: JSON.stringify({model, messages:msgs, stream: !!onText, ...(json ? {response_format:{type:"json_object"}} : {})})}); }
+    catch (e) { if (e.name === "AbortError") throw {code:"cancelled"}; throw {code:"offline"}; }
+    if (res.status === 404 || (res.status === 400 && /model/i.test(await res.clone().text()))) { lastErr = {code:"upstream_error"}; continue; }
+    if (res.status === 401 || res.status === 403) throw {code:"bad_key"};
+    if (res.status === 400) { const t = await res.text(); if (/API key|API_KEY/i.test(t)) throw {code:"bad_key"}; throw {code:"upstream_error"}; }
+    if (res.status === 429) throw {code:"rate_limited"};
+    if (!res.ok) { lastErr = {code:"upstream_error"}; continue; }
+    if (S.gmodel !== model) { S.gmodel = model; setMeta("gmodel", model); }
+    if (!onText){ const j = await res.json(); return j.choices?.[0]?.message?.content || ""; }
+    const reader = res.body.getReader(), dec = new TextDecoder(); let buf = "", text = "";
+    try {
+      for (;;){ const {done, value} = await reader.read(); if (done) break; buf += dec.decode(value, {stream:true}); let i;
+        while ((i = buf.indexOf("\n")) >= 0){ const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1); if (!line.startsWith("data:")) continue; const d = line.slice(5).trim(); if (d === "[DONE]") continue;
+          try { const c = JSON.parse(d).choices?.[0]?.delta?.content; if (c) { text += c; onText({text}); } } catch {} } }
+    } catch (e) { if (e.name === "AbortError") throw {code:"cancelled", text}; throw {code:"upstream_error", text}; }
+    if (!text) throw {code:"empty_completion"};
+    return text;
+  }
+  throw lastErr;
+}
+
+/* ================= UI primitives ================= */
+let toastT;
+function toast(msg){ const t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 2600); }
+function busy(msg){ $("#busyT").textContent = msg; $("#busy").hidden = false; }
+function unbusy(){ $("#busy").hidden = true; }
+let modalClose = null;
+function openModal(html, onClose){ $("#mbox").innerHTML = html; $("#modal").hidden = false; modalClose = onClose || null; }
+function closeModal(){ $("#modal").hidden = true; $("#mbox").innerHTML = ""; const f = modalClose; modalClose = null; f && f(); }
+function confirmBox(title, text, ok = "Löschen"){
+  return new Promise(res => {
+    openModal(`<h3>${esc(title)}</h3><p class="sub">${esc(text)}</p><div class="mrow"><button class="btn ghost" data-act="cNo">Abbrechen</button><button class="btn primary" style="background:var(--danger)" data-act="cOk">${esc(ok)}</button></div>`, () => res(false));
+    S._confirm = v => { modalClose = null; closeModal(); res(v); };
+  });
+}
+function subjectOptions(sel){
+  return [INBOX, ...allSubjects()].map(s => `<option value="${s.id}" ${s.id === sel ? "selected" : ""}>${s.emoji} ${esc(s.short)}</option>`).join("");
+}
+
+/* mini markdown with [[id]] refs */
+function md(t){
+  const inline = s => esc(s)
+    .replace(/\[\[([a-z0-9]+)\]\]/g, (m, id) => { const it = item(id); return it ? `<button class="ref" data-act="open" data-id="${id}">📄 ${esc(it.title || "Eintrag")}</button>` : ""; })
+    .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<i>$2</i>").replace(/`([^`]+)`/g, "<code>$1</code>");
+  const lines = String(t || "").split("\n"); let h = "", list = null;
+  const endList = () => { if (list) { h += `</${list}>`; list = null; } };
+  for (const raw of lines){
+    const l = raw.trimEnd();
+    let m;
+    if ((m = l.match(/^\s*[-*•]\s+(.*)/))) { if (list !== "ul") { endList(); h += "<ul>"; list = "ul"; } h += `<li>${inline(m[1])}</li>`; }
+    else if ((m = l.match(/^\s*\d+[.)]\s+(.*)/))) { if (list !== "ol") { endList(); h += "<ol>"; list = "ol"; } h += `<li>${inline(m[1])}</li>`; }
+    else if ((m = l.match(/^#{1,4}\s+(.*)/))) { endList(); h += `<p><b>${inline(m[1])}</b></p>`; }
+    else if (!l.trim()) { endList(); }
+    else { endList(); h += `<p>${inline(l)}</p>`; }
+  }
+  endList(); return h;
+}
+
+/* ================= Views ================= */
+function render(){
+  const v = S.view; let h = "";
+  if (S.warn) h += `<div class="warn">${esc(S.warn)}</div>`;
+  if (v === "subject") S.view = "subjects";
+  h += ({home:viewHome, subjects:viewBinder, subject:viewBinder, tasks:viewTasks, ask:viewAsk, more:viewMore, search:viewSearch}[v] || viewHome)();
+  $("#main").innerHTML = h;
+  document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.v === S.view));
+  $("#fab").style.display = (v === "ask" || v === "more") ? "none" : "";
+  if (v === "search") { const q = $("#q"); q.value = S.query; renderSearch(); if (!S._noFocus) setTimeout(() => q.focus(), 30); }
+  if (v === "ask") { renderChat(); }
+  if (v === "more") showUsage();
+  if (S.view === "subjects") { const t = document.querySelector(".rtab.on"); if (t) t.scrollIntoView({inline:"center", block:"nearest"}); bindSwipe(); }
+}
+async function showUsage(){ try { const est = await navigator.storage?.estimate?.(); const u = $("#usage"); if (u) u.textContent = est ? (est.usage / 1048576).toFixed(1) + " MB belegt" : "unbekannt"; } catch {} }
+
+function openTasksFor(sid){ return S.items.filter(i => i.type === "task" && !i.done && i.subjectId === sid); }
+
+function nextSchoolDay(){
+  if (!S.timetable.length) return null;
+  const now = new Date(); const hm = pad(now.getHours()) + ":" + pad(now.getMinutes());
+  for (let off = 0; off < 8; off++){
+    const d = new Date(); d.setDate(d.getDate() + off); const wd = d.getDay();
+    const ls = S.timetable.filter(l => l.day === wd).sort((a,b) => a.start.localeCompare(b.start));
+    if (!ls.length) continue;
+    if (off === 0 && ls[ls.length - 1].end <= hm) continue;
+    return {off, wd, date:d, lessons:ls, hm};
+  }
+  return null;
+}
+
+function viewHome(){
+  const hr = new Date().getHours();
+  const greet = hr < 11 ? "Guten Morgen" : hr < 18 ? "Hey" : "Guten Abend";
+  let h = `<div class="hello" style="margin-top:8px"><p>${new Date().toLocaleDateString("de-DE",{weekday:"long", day:"numeric", month:"long"})}</p><h1>${greet}, Lukas 👋</h1></div>
+  ${installBanner()}
+  <div class="quick">
+    <button class="qbtn main" data-act="cam"><span class="em">📷</span>Blatt scannen</button>
+    <button class="qbtn" data-act="newtask"><span class="em">✅</span>Aufgabe</button>
+    <button class="qbtn" data-act="newnote"><span class="em">💭</span>Gedanke</button>
+  </div>`;
+
+  const nd = nextSchoolDay();
+  if (nd){
+    const label = nd.off === 0 ? "Heute" : nd.off === 1 ? "Morgen" : DAYS[nd.wd];
+    h += `<section class="blk"><h2>📅 ${label} in der Schule <small>${nd.date.toLocaleDateString("de-DE",{weekday:"short", day:"numeric", month:"numeric"})}</small></h2><div class="card day">`;
+    for (const l of nd.lessons){
+      const s = subj(l.subjectId); const ot = openTasksFor(s.id); const sheets = S.items.filter(i => i.subjectId === s.id && i.type === "sheet").length;
+      const now = nd.off === 0 && l.start <= nd.hm && nd.hm < l.end;
+      const urgent = ot.filter(t => t.due && daysUntil(t.due) <= nd.off).length;
+      h += `<button class="lesson ${now ? "now" : ""}" data-act="sub" data-id="${s.id}">
+        <div class="t">${l.start}<br>${l.end}</div><div class="bar" style="background:${s.color}"></div>
+        <div class="info"><div class="nm">${s.emoji} ${esc(s.short)}${now ? ' <span class="badge blue">jetzt</span>' : ""}</div>
+        <div class="sub">${esc([l.room, l.teacher].filter(Boolean).join(" · "))}</div>
+        <div class="badges">${urgent ? `<span class="badge red">${urgent} fällig</span>` : ""}${ot.length - urgent > 0 ? `<span class="badge">${ot.length - urgent} offen</span>` : ""}<span class="badge">📄 ${sheets}</span></div></div></button>`;
+    }
+    h += `</div></section>`;
+  }
+
+  const open = S.items.filter(i => i.type === "task" && !i.done);
+  const soon = open.filter(t => t.due && daysUntil(t.due) <= 7).sort((a,b) => a.due.localeCompare(b.due));
+  h += `<section class="blk"><h2>⏰ Bald fällig <small>${open.length} offen</small></h2>`;
+  h += soon.length ? `<div class="card tasks">${soon.map(taskRow).join("")}</div>` : `<div class="card empty">Nichts fällig in den nächsten 7 Tagen 🎉</div>`;
+  h += `</section>`;
+
+  const recent = S.items.filter(i => i.type !== "task").sort((a,b) => b.updated - a.updated).slice(0, 6);
+  h += `<section class="blk"><h2>🕘 Zuletzt</h2>`;
+  h += recent.length ? `<div class="grid">${recent.map(itemCard).join("")}</div>` : `<div class="card empty">Noch leer. Scann dein erstes Blatt mit 📷 – ab dann musst du es nie wieder mitschleppen.</div>`;
+  h += `</section>`;
+
+  const n = S.items.length;
+  if (n >= 3 && Date.now() - S.lastBackup > 7 * 864e5){
+    h += `<section class="blk"><div class="hint">💾 <span><b>Backup machen?</b> Deine Sachen liegen nur auf diesem Gerät.</span><button data-act="exportB">Sichern</button></div></section>`;
+  }
+  return h;
+}
+
+const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+let installEvt = null;
+function installBanner(){
+  if (window.claude || isStandalone() || S.hideInstall || !/^https:/.test(location.protocol)) return "";
+  if (installEvt) return `<div class="install"><span class="em">📲</span><span><b>Als App installieren</b><small>Auf den Homescreen, läuft auch offline</small></span><button data-act="install">Installieren</button><button class="x" data-act="hideInstall" aria-label="Ausblenden">✕</button></div>`;
+  if (isIOS) return `<div class="install"><span class="em">📲</span><span><b>Auf den Homescreen holen</b><small>Unten auf <b>Teilen</b> <span style="font-size:16px">⎋</span> → „Zum Home-Bildschirm“</small></span><button class="x" data-act="hideInstall" aria-label="Ausblenden">✕</button></div>`;
+  return "";
+}
+function itemCard(it){
+  const s = subj(it.subjectId);
+  let th;
+  if (it.type === "sheet") th = `<div class="thumb">${it.thumb ? `<img src="${it.thumb}" alt="" loading="lazy">` : ""}${(it.pages||[]).length > 1 ? `<span class="pages">${it.pages.length} S.</span>` : ""}${it.summary ? `<span class="ai">✨ gelesen</span>` : ""}</div>`;
+  else th = `<div class="thumb note">${esc((it.text || "").slice(0, 220)) || "💭"}</div>`;
+  return `<button class="card item" data-act="open" data-id="${it.id}">${th}<div class="meta"><span class="dot" style="background:${s.color}"></span>${esc(s.short)} · ${fmtDate(it.created)}</div><div class="ititle">${esc(it.title || (it.type === "note" ? "Gedanke" : "Blatt"))}</div></button>`;
+}
+
+function taskRow(t){
+  const s = subj(t.subjectId);
+  let due = "";
+  if (t.due && !t.done){ const n = daysUntil(t.due); due = `<span class="due ${n < 0 ? "over" : n === 0 ? "today" : ""}">${fmtDue(t.due)}</span>`; }
+  return `<div class="task ${t.done ? "done" : ""}"><button class="check" data-act="toggle" data-id="${t.id}" aria-label="Erledigt">${ICON.check}</button>
+    <button class="tbody" data-act="open" data-id="${t.id}"><div class="tt">${esc(t.title || "Aufgabe")}</div><div class="ts"><span class="dot" style="background:${s.color}"></span>${esc(s.short)}</div></button>${due}</div>`;
+}
+
+const topicsOf = s => s.topics || [];
+function binderList(){ const l = [...allSubjects()]; if (S.items.some(i => i.subjectId === "inbox")) l.unshift(INBOX); return l; }
+function viewBinder(){
+  const list = binderList();
+  if (!list.length) return `<div class="card empty" style="margin-top:20px">Noch keine Mappe. <button class="btn primary" data-act="newSub">＋ Fach anlegen</button></div>`;
+  if (!S.subjectId || !list.find(x => x.id === S.subjectId)) { S.subjectId = list[0].id; S.topicId = "all"; }
+  const s = subj(S.subjectId);
+  const topics = topicsOf(s);
+  if (S.topicId !== "all" && !topics.find(t => t.id === S.topicId)) S.topicId = "all";
+  let h = `<div class="rtabs">${list.map(x => { const n = S.items.filter(i => i.subjectId === x.id && i.type === "task" && !i.done).length; return `<button class="rtab ${x.id === s.id ? "on" : ""}" style="--c:${x.color}" data-act="sub" data-id="${x.id}">${x.emoji} ${esc(x.short)}${n ? `<span class="n">${n}</span>` : ""}</button>`; }).join("")}<button class="rtab plus" data-act="newSub">＋</button></div>`;
+  const lessons = S.timetable.filter(l => l.subjectId === s.id).sort((a,b) => a.day - b.day || a.start.localeCompare(b.start));
+  const when = lessons.map(l => DAYS[l.day].slice(0,2) + " " + l.start + (l.room ? " · " + l.room : "") + (l.teacher ? " · " + l.teacher : "")).join("<br>");
+  h += `<div class="fbody" id="fbody" style="--c:${s.color}">
+    <div class="fhead"><div class="big">${s.emoji}</div><div><h1>${esc(s.short)}</h1><p>${esc(s.full || "")}${when ? "<br>" + when : ""}</p></div>${s.id !== "inbox" ? `<button class="iconbtn" data-act="editSub" data-id="${s.id}" aria-label="Fach bearbeiten">${ICON.edit}</button>` : ""}</div>
+    <div class="dropz" id="dropz"><div class="acts">
+      <button class="prim" data-act="cam"><span class="em">📷</span>Foto</button>
+      <button data-act="files"><span class="em">📄</span>Datei</button>
+      <button data-act="newtask"><span class="em">✅</span>Aufgabe</button>
+      <button data-act="newnote"><span class="em">💭</span>Gedanke</button></div>
+      <small>Landet direkt in <b>${esc(s.short)}${S.topicId !== "all" ? " › " + esc(topics.find(t => t.id === S.topicId)?.name || "") : ""}</b>${matchMedia("(pointer:fine)").matches ? " · oder Dateien hier reinziehen" : ""}</small></div>`;
+  const its = S.items.filter(i => i.subjectId === s.id);
+  if (s.id !== "inbox"){
+    h += `<div class="topics"><button class="topic ${S.topicId === "all" ? "on" : ""}" data-act="topic" data-id="all">${ICON.folder} Alles <span class="n">${its.length}</span></button>${topics.map(t => `<button class="topic ${S.topicId === t.id ? "on" : ""}" data-act="topic" data-id="${t.id}">${ICON.folder} ${esc(t.name)} <span class="n">${its.filter(i => i.topicId === t.id).length}</span></button>`).join("")}${S.topicId !== "all" ? `<button class="topic add" data-act="editTopic">✎</button>` : ""}<button class="topic add" data-act="newTopic">＋ Unterordner</button></div>`;
+  }
+  const inTopic = its.filter(i => S.topicId === "all" || i.topicId === S.topicId);
+  const cnt = t => inTopic.filter(i => i.type === t).length;
+  const tabs = [["all","Alles",inTopic.length],["sheet","Blätter",cnt("sheet")],["task","Aufgaben",cnt("task")],["note","Gedanken",cnt("note")]];
+  h += `<div class="ftabs">${tabs.map(([k,l,n]) => `<button class="${S.tab === k ? "on" : ""}" data-act="tab" data-t="${k}">${l} ${n || ""}</button>`).join("")}</div>`;
+  const tasks = inTopic.filter(i => i.type === "task").sort((a,b) => (a.done - b.done) || (a.due || "9999").localeCompare(b.due || "9999"));
+  const docs = inTopic.filter(i => i.type !== "task" && (S.tab === "all" || i.type === S.tab)).sort((a,b) => b.created - a.created);
+  let shown = 0;
+  if (S.tab === "all" || S.tab === "task"){
+    const show = S.tab === "all" ? tasks.filter(t => !t.done) : tasks;
+    if (show.length){ shown++; h += `${S.tab === "all" ? '<div class="glabel">Offene Aufgaben</div>' : '<div style="height:8px"></div>'}<div class="card tasks">${show.map(taskRow).join("")}</div>`; }
+  }
+  if (S.tab !== "task" && docs.length){ shown++; h += `${S.tab === "all" ? '<div class="glabel">Blätter & Gedanken</div>' : '<div style="height:8px"></div>'}<div class="grid">${docs.map(itemCard).join("")}</div>`; }
+  if (!shown) h += `<div class="empty" style="margin-top:10px">Diese Mappe ist noch leer.<br>Leg oben dein erstes Blatt rein 👆</div>`;
+  if (list.length > 1) h += `<div class="swipehint">← wischen für andere Mappen →</div>`;
+  return h + `</div>`;
+}
+let swipeBound = null;
+function bindSwipe(){
+  const el = $("#fbody"); if (!el || swipeBound === el) return; swipeBound = el;
+  let x0 = 0, y0 = 0, t0 = 0;
+  el.addEventListener("touchstart", e => { const t = e.touches[0]; x0 = t.clientX; y0 = t.clientY; t0 = Date.now(); }, {passive:true});
+  el.addEventListener("touchend", e => {
+    const t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0;
+    if (Math.abs(dx) < 70 || Math.abs(dy) > 50 || Date.now() - t0 > 600) return;
+    if (e.target.closest(".topics,.ftabs,.rtabs")) return;
+    const l = binderList(), i = l.findIndex(x => x.id === S.subjectId), n = l[(i + (dx < 0 ? 1 : -1) + l.length) % l.length];
+    S.subjectId = n.id; S.topicId = "all"; S.tab = "all"; render();
+  }, {passive:true});
+  const dz = $("#dropz");
+  if (dz){ dz.addEventListener("dragover", e => { e.preventDefault(); dz.classList.add("over"); }); dz.addEventListener("dragleave", () => dz.classList.remove("over")); }
+}
+
+function viewTasks(){
+  const open = S.items.filter(i => i.type === "task" && !i.done);
+  const done = S.items.filter(i => i.type === "task" && i.done).sort((a,b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 30);
+  const g = {over:[], today:[], week:[], later:[], none:[]};
+  for (const t of open){ if (!t.due) g.none.push(t); else { const n = daysUntil(t.due); (n < 0 ? g.over : n === 0 ? g.today : n <= 7 ? g.week : g.later).push(t); } }
+  for (const k in g) g[k].sort((a,b) => (a.due || "").localeCompare(b.due || "") || a.created - b.created);
+  let h = `<div class="hello" style="margin-top:8px"><h1>Aufgaben</h1><p>${open.length ? open.length + " offen" : "Alles erledigt – stark."}</p></div>
+  <button class="btn primary" style="width:100%;margin-top:14px" data-act="newtask">＋ Neue Aufgabe</button>`;
+  const sec = (k, l) => g[k].length ? `<div class="glabel">${l}</div><div class="card tasks">${g[k].map(taskRow).join("")}</div>` : "";
+  h += sec("over","Überfällig") + sec("today","Heute") + sec("week","Nächste 7 Tage") + sec("later","Später") + sec("none","Ohne Datum");
+  if (done.length) h += `<details><summary>Erledigt (${done.length})</summary><div class="card tasks">${done.map(taskRow).join("")}</div></details>`;
+  return h;
+}
+
+function viewSearch(){
+  return `<div style="margin-top:10px"><input id="q" type="search" placeholder="Suche in Blättern, Aufgaben, Gedanken…" autocomplete="off"></div><div id="qres" style="margin-top:12px"></div>`;
+}
+function renderSearch(){
+  const q = S.query.trim().toLowerCase(); const box = $("#qres"); if (!box) return;
+  if (!q){ box.innerHTML = `<div class="empty">Tipp einfach ein Stichwort – z. B. „Kaufvertrag“ oder „Referat“.<br><small>Gefunden wird auch Text <b>auf</b> deinen Blättern, wenn sie mit ✨ gelesen wurden.</small></div>`; return; }
+  const toks = q.split(/\s+/).filter(Boolean);
+  const res = [];
+  for (const it of S.items){
+    const s = subj(it.subjectId);
+    const hay = [it.title, it.text, it.summary, it.transcript, (it.tags||[]).join(" "), s.short, s.full].join("\n");
+    const low = hay.toLowerCase();
+    if (!toks.every(t => low.includes(t))) continue;
+    const src = [it.text, it.summary, it.transcript].join(" ").replace(/\s+/g, " ");
+    const idx = src.toLowerCase().indexOf(toks[0]);
+    let snip = idx >= 0 ? (idx > 40 ? "…" : "") + src.slice(Math.max(0, idx - 40), idx + 110) : (it.summary || it.text || "").slice(0, 120);
+    let score = toks.reduce((a,t) => a + ((it.title||"").toLowerCase().includes(t) ? 3 : 0) + ((it.tags||[]).join(" ").toLowerCase().includes(t) ? 2 : 0), 0);
+    res.push({it, snip, score});
+  }
+  res.sort((a,b) => b.score - a.score || b.it.updated - a.it.updated);
+  const hl = s => { let h = esc(s); for (const t of toks) h = h.replace(new RegExp("(" + t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/&/g,"&amp;").replace(/</g,"&lt;") + ")", "gi"), "<mark>$1</mark>"); return h; };
+  if (!res.length){ box.innerHTML = `<div class="empty">Nichts gefunden für „${esc(S.query)}“.</div>`; return; }
+  box.innerHTML = `<div class="card">${res.slice(0, 60).map(({it, snip}) => {
+    const s = subj(it.subjectId);
+    const ic = it.type === "sheet" ? (it.thumb ? `<img src="${it.thumb}" alt="">` : "📄") : it.type === "task" ? "✅" : "💭";
+    return `<button class="sres" data-act="open" data-id="${it.id}"><div class="st">${ic}</div><div class="sb"><div class="sn">${hl(it.title || "Ohne Titel")}</div><div class="ss"><span class="dot" style="background:${s.color}"></span> ${esc(s.short)} · ${hl(snip)}</div></div></button>`;
+  }).join("")}</div>`;
+}
+
+function viewAsk(){
+  let h = `<div class="hello" style="margin-top:8px"><h1>Frag dein Schul-Gehirn ✨</h1><p>Die KI kennt alles, was du gespeichert hast – Blätter, Aufgaben, Gedanken.</p></div>`;
+  if (!AI.on){
+    h += `<div class="card empty" style="margin-top:16px;text-align:left">Die KI ist noch nicht freigeschaltet. Das geht einmalig und kostenlos unter <b>Mehr → KI</b>. Alles andere (Scannen, Mappen, Aufgaben, Suche) funktioniert immer – auch offline.<br><br><button class="btn primary" data-act="go" data-v="more">KI einrichten</button></div>`;
+    return h;
+  }
+  h += `<div class="tabs" style="margin-bottom:0"><button class="${S.askScope === "all" ? "on" : ""}" data-act="scope" data-id="all">Alle Fächer</button>${allSubjects().map(s => `<button class="${S.askScope === s.id ? "on" : ""}" data-act="scope" data-id="${s.id}">${s.emoji} ${esc(s.short)}</button>`).join("")}</div>`;
+  h += `<div class="chat" id="chatlog"></div>
+  <div class="askbar"><textarea id="askIn" rows="1" placeholder="z. B. Was muss ich für WBL lernen?"></textarea><button data-act="askSend" aria-label="Senden">${ICON.send}</button></div>`;
+  return h;
+}
+function renderChat(){
+  const log = $("#chatlog"); if (!log) return;
+  if (!S.chat.length){
+    const sug = ["Was steht diese Woche an?","Fass mir alles aus WBL zusammen","Stell mir 5 Quizfragen zu POG","Was hab ich in DK zuletzt gemacht?","Erklär mir das letzte Blatt einfach"];
+    const unread = S.items.filter(i => i.type === "sheet" && !i.transcript).length;
+    log.innerHTML = `<div class="sugg">${sug.map(s => `<button data-act="sugg">${esc(s)}</button>`).join("")}</div>${unread ? `<div class="hint" style="margin-top:12px">💡 <span>${unread} Blatt/Blätter noch nicht gelesen. Öffne sie und tipp auf <b>✨ Lesen</b>, damit ich den Inhalt kenne.</span></div>` : ""}`;
+    return;
+  }
+  log.innerHTML = S.chat.map((m, i) => m.role === "user" ? `<div class="msg user">${esc(m.content)}</div>` : `<div class="msg ai" ${i === S.chat.length - 1 ? 'id="lastAi"' : ""}>${m.content ? md(m.content) : '<span class="think"><i></i><i></i><i></i></span>'}</div>`).join("")
+    + (S.chat.length && !S.asking ? `<button class="btn ghost" style="align-self:center;flex:none;padding:8px 14px;font-size:14px" data-act="askClear">Neuer Chat</button>` : "");
+}
+
+function viewMore(){
+  const items = S.items.length, sheets = S.items.filter(i => i.type === "sheet").length;
+  const lb = S.lastBackup ? new Date(S.lastBackup).toLocaleDateString("de-DE") : "noch nie";
+  let tt = [...S.timetable].sort((a,b) => a.day - b.day || a.start.localeCompare(b.start));
+  return `<div class="hello" style="margin-top:8px"><h1>Mehr</h1><p>${items} Einträge · ${sheets} Blätter</p></div>
+  <section class="blk"><h2>📅 Stundenplan</h2><div class="card">${tt.map(l => { const s = subj(l.subjectId); return `<div class="tt-row"><span class="dot" style="background:${s.color}"></span><b style="width:24px">${DAYS[l.day].slice(0,2)}</b><span style="font-variant-numeric:tabular-nums">${l.start}–${l.end}</span><b>${esc(s.short)}</b><span style="color:var(--muted)">${esc([l.room, l.teacher].filter(Boolean).join(" · "))}</span><button class="x" data-act="delLesson" data-id="${l.id}" aria-label="Entfernen">✕</button></div>`; }).join("") || '<div class="empty">Kein Stundenplan</div>'}</div>
+  <button class="btn" style="width:100%;margin-top:10px" data-act="addLesson">＋ Stunde hinzufügen</button></section>
+  <section class="blk"><h2>✨ KI</h2><div class="card kbox">
+    ${SAMPLE ? `<p style="margin:0"><b>✓ Läuft über Claude</b> – hier in Claude ist nichts weiter nötig.</p><p class="sub" style="margin-top:8px">Für die installierte App auf dem Homescreen:</p>` : `<p style="margin:0">${S.gkey ? "<b>✓ KI ist aktiv</b> (Google Gemini)" : "Damit die KI Blätter lesen und Fragen beantworten kann, brauchst du einmalig einen <b>kostenlosen</b> Schlüssel von Google."}</p>`}
+    <ol style="margin:10px 0 0;padding-left:20px;font-size:14px;color:var(--muted)"><li><a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com/app/apikey</a> öffnen (mit Google-Konto)</li><li>„API-Schlüssel erstellen“ tippen, kopieren</li><li>Hier einfügen → Speichern</li></ol>
+    <input id="gkey" type="password" autocomplete="off" placeholder="AIza…" value="${esc(S.gkey)}" style="margin-top:12px">
+    <div class="mrow" style="margin-top:10px"><button class="btn" data-act="gTest">Testen</button><button class="btn primary" data-act="gSave">Speichern</button></div>
+    <div class="kstat" id="gStat">Der Schlüssel bleibt nur auf diesem Gerät.</div>
+  </div></section>
+  <section class="blk"><h2>💾 Sicherung</h2><div class="card list">
+    <button class="li" data-act="exportB"><span class="em">⬇️</span><span class="lt">Backup speichern<small>Letztes Backup: ${lb}</small></span></button>
+    <button class="li" data-act="importB"><span class="em">⬆️</span><span class="lt">Backup laden<small>z. B. auf neuem Handy</small></span></button>
+    <div class="li"><span class="em">📦</span><span class="lt">Speicher<small id="usage">wird berechnet…</small></span></div>
+  </div></section>
+  <section class="blk"><h2>🗂️ Fächer</h2><div class="card list">${allSubjects().map(s => `<button class="li" data-act="editSub" data-id="${s.id}"><span class="em">${s.emoji}</span><span class="lt">${esc(s.short)}<small>${esc(s.full || "")}</small></span></button>`).join("")}
+    <button class="li" data-act="newSub"><span class="em">＋</span><span class="lt">Fach hinzufügen</span></button></div></section>
+  <section class="blk"><div class="card list"><button class="li danger" data-act="wipe"><span class="em">🗑️</span><span class="lt">Alles löschen</span></button></div>
+  <p style="color:var(--muted);font-size:13px;padding:10px 4px">Alles bleibt lokal auf diesem Gerät. Nur wenn du ✨ KI nutzt, wird das jeweilige Blatt kurz an die KI geschickt.</p></section>`;
+}
+
+/* ================= Detail ================= */
+function openItem(id){ S.openId = id; S.itemAnswer = ""; S.found = null; renderDetail(); $("#detail").hidden = false; $("#detail").scrollTop = 0; }
+function closeItem(){ flushSaves(); S.openId = null; $("#detail").hidden = true; $("#detail").innerHTML = ""; render(); }
+
+function renderDetail(){
+  const it = item(S.openId); if (!it) { closeItem(); return; }
+  const s = subj(it.subjectId);
+  const label = {sheet:"📄 Blatt", task:"✅ Aufgabe", note:"💭 Gedanke"}[it.type];
+  let h = `<div class="dh"><div class="wrap"><button class="iconbtn" data-act="dclose" aria-label="Zurück">${ICON.back}</button><span class="lbl">${label} · <span class="dot" style="background:${s.color}"></span> ${esc(s.short)}</span><div class="sp"></div><button class="iconbtn" data-act="delitem" aria-label="Löschen" style="color:var(--danger)">${ICON.trash}</button></div></div><div class="wrap dbody">`;
+  h += `<input class="ttl" data-f="title" value="${esc(it.title)}" placeholder="${it.type === "task" ? "Was ist zu tun?" : "Titel"}">`;
+  const tps = topicsOf(s);
+  h += `<div class="row"><label style="margin-top:6px">Fach<select data-f="subjectId">${subjectOptions(it.subjectId)}</select></label>${tps.length ? `<label style="margin-top:6px">Unterordner<select data-f="topicId"><option value="">—</option>${tps.map(t => `<option value="${t.id}" ${t.id === it.topicId ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></label>` : ""}${it.type === "task" ? `<label style="margin-top:6px">Fällig am<input type="date" data-f="due" value="${esc(it.due)}"></label>` : ""}</div>`;
+
+  if (it.type === "task"){
+    h += `<div class="task ${it.done ? "done" : ""}" style="padding:0;border:0"><button class="bigcheck" data-act="toggle" data-id="${it.id}"><span class="check">${ICON.check}</span>${it.done ? "Erledigt ✓" : "Als erledigt markieren"}</button></div>`;
+    h += `<div class="chips">${[["Heute",0],["Morgen",1],["Übermorgen",2],["In 1 Woche",7]].map(([l,n]) => `<button data-act="setDue" data-n="${n}" class="${it.due === addDays(n) ? "on" : ""}">${l}</button>`).join("")}${it.due ? `<button data-act="setDue" data-n="">Kein Datum</button>` : ""}</div>`;
+    h += `<label>Details<textarea data-f="text" placeholder="Seite, Nummer, was genau…">${esc(it.text)}</textarea></label>`;
+    if (it.fromId && item(it.fromId)) h += `<p style="margin-top:14px">Gehört zu: <button class="ref" data-act="open" data-id="${it.fromId}">📄 ${esc(item(it.fromId).title)}</button></p>`;
+  }
+
+  if (it.type === "note"){
+    h += `<label>Gedanke<textarea data-f="text" style="min-height:45vh" placeholder="Schreib einfach drauf los…">${esc(it.text)}</textarea></label>`;
+  }
+
+  if (it.type === "sheet"){
+    h += aiBox(it);
+    h += `<div class="pages">${(it.pages || []).map((p, i) => `<div class="page"><img data-pid="${p}" data-act="zoom" alt="Seite ${i+1}"><div class="ptools"><span style="padding:0 6px">Seite ${i+1}/${it.pages.length}</span><div class="sp"></div><button data-act="rot" data-i="${i}">⟳ Drehen</button><button data-act="savepage" data-i="${i}">⬇</button><button data-act="delpage" data-i="${i}" style="color:var(--danger)">✕</button></div></div>`).join("")}</div>`;
+    h += `<div class="addpage"><button class="btn" data-act="addCam">📷 Seite fotografieren</button><button class="btn" data-act="addFile">🖼️ Seite hochladen</button></div>`;
+    h += `<label>Eigene Notizen<textarea data-f="text" placeholder="Was war wichtig, was hat der Lehrer gesagt…">${esc(it.text)}</textarea></label>`;
+  }
+  h += `<label>Stichwörter (mit Komma)<input data-f="tags" value="${esc((it.tags || []).join(", "))}" placeholder="z. B. Klausur, Kaufvertrag"></label>`;
+  h += `<p style="color:var(--muted);font-size:13px;margin-top:18px">Erstellt ${new Date(it.created).toLocaleString("de-DE",{dateStyle:"medium", timeStyle:"short"})}</p></div>`;
+  $("#detail").innerHTML = h;
+  document.querySelectorAll("#detail img[data-pid]").forEach(async img => { img.src = await urlFor(img.dataset.pid); });
+}
+
+function aiBox(it){
+  const can = AI.vision;
+  let h = `<div class="aibox"><h3>✨ KI-Helfer</h3>`;
+  if (it.summary){
+    h += `<p>${esc(it.summary)}</p>`;
+    if (it.tags?.length) h += `<div class="tagrow">${it.tags.map(t => `<span class="tag">#${esc(t)}</span>`).join("")}</div>`;
+  } else if (!can) {
+    h += `<p style="color:var(--muted);font-size:14px">Ich kann Blätter lesen, zusammenfassen und Hausaufgaben erkennen – einmal unter <b>Mehr → KI</b> freischalten.</p><button class="btn" data-act="go" data-v="more">KI einrichten</button>`;
+  } else {
+    h += `<p style="font-size:14px">Ich lese das Blatt, schreibe den Text ab (damit du ihn suchen kannst), fasse es zusammen und erkenne Hausaufgaben.</p>`;
+  }
+  if (S.found && S.found.id === it.id && S.found.tasks.length){
+    h += `<div class="found"><b style="font-size:14px">Gefundene Aufgaben:</b>${S.found.tasks.map((t, i) => `<div class="f"><span>📌 ${esc(t.titel)}${t.faellig ? ` <small style="color:var(--muted)">· ${fmtDue(t.faellig)}</small>` : ""}</span>${t.added ? "✓" : `<button data-act="useTask" data-i="${i}">Übernehmen</button>`}</div>`).join("")}</div>`;
+  }
+  if (can) h += `<button class="btn primary" data-act="aiRead" id="aiReadBtn">${it.summary ? "↻ Nochmal lesen" : "✨ Blatt lesen & zusammenfassen"}</button>`;
+  if (it.transcript) h += `<details><summary>📝 Text vom Blatt anzeigen</summary><div class="transcript">${esc(it.transcript)}</div></details>`;
+  if (AI.on){
+    h += `<div class="inline-ask"><input id="itemQ" placeholder="Frag was zu diesem Blatt…"><button data-act="askItem">Frag</button></div>`;
+    if (S.itemAnswer) h += `<div class="answer" id="itemA">${S.itemAnswer === "…" ? '<span class="think"><i></i><i></i><i></i></span>' : md(S.itemAnswer)}</div>`;
+  }
+  return h + `</div>`;
+}
+
+/* ================= Image processing ================= */
+const canvasBlob = (c, q = 0.86) => new Promise(r => c.toBlob(r, "image/jpeg", q));
+function makeThumb(c){
+  const w = 420, s = w / c.width; const t = document.createElement("canvas"); t.width = w; t.height = Math.round(c.height * s);
+  t.getContext("2d").drawImage(c, 0, 0, t.width, t.height); return t.toDataURL("image/jpeg", 0.7);
+}
+async function loadBitmap(file){
+  try { return await createImageBitmap(file, {imageOrientation:"from-image"}); } catch {}
+  try { return await createImageBitmap(file); } catch {}
+  const u = URL.createObjectURL(file); const img = new Image(); img.src = u; await img.decode(); return img;
+}
+function enhanceScan(ctx, w, h){
+  const d = ctx.getImageData(0, 0, w, h), p = d.data, N = w * h;
+  const L = new Float32Array(N);
+  for (let i = 0, j = 0; j < N; i += 4, j++) L[j] = p[i] * .299 + p[i+1] * .587 + p[i+2] * .114;
+  // estimate paper background per block (90th percentile) to remove shadows
+  const B = 48, gw = Math.ceil(w / B), gh = Math.ceil(h / B); let G = new Float32Array(gw * gh);
+  const hist = new Uint32Array(64);
+  for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++){
+    hist.fill(0); let n = 0;
+    const y1 = Math.min(h, (gy+1)*B), x1 = Math.min(w, (gx+1)*B);
+    for (let y = gy*B; y < y1; y += 2) for (let x = gx*B; x < x1; x += 2){ hist[L[y*w+x] >> 2]++; n++; }
+    let acc = 0, k = 63; const lim = n * 0.1;
+    while (k > 0 && acc + hist[k] < lim){ acc += hist[k]; k--; }
+    G[gy*gw+gx] = Math.max(40, k * 4 + 2);
+  }
+  for (let pass = 0; pass < 2; pass++){ const T = new Float32Array(G.length);
+    for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++){ let s = 0, c = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++){ const yy = y+dy, xx = x+dx; if (yy>=0&&yy<gh&&xx>=0&&xx<gw){ s += G[yy*gw+xx]; c++; } } T[y*gw+x] = s / c; }
+    G = T; }
+  for (let y = 0; y < h; y++){
+    const fy = Math.min(gh - 1.001, Math.max(0, y / B - .5)), y0 = fy | 0, ty = fy - y0, y1 = Math.min(gh - 1, y0 + 1);
+    for (let x = 0; x < w; x++){
+      const fx = Math.min(gw - 1.001, Math.max(0, x / B - .5)), x0 = fx | 0, tx = fx - x0, x1 = Math.min(gw - 1, x0 + 1);
+      const bg = (G[y0*gw+x0]*(1-tx) + G[y0*gw+x1]*tx)*(1-ty) + (G[y1*gw+x0]*(1-tx) + G[y1*gw+x1]*tx)*ty;
+      let v = L[y*w+x] / bg * 255;
+      v = (v - 60) * (255 / (232 - 60)); v = v < 0 ? 0 : v > 255 ? 255 : v;
+      const i = (y*w+x) * 4; p[i] = p[i+1] = p[i+2] = v;
+    }
+  }
+  ctx.putImageData(d, 0, 0);
+}
+async function processImage(file, scan){
+  const bmp = await loadBitmap(file);
+  const max = 2200; let w = bmp.width, h = bmp.height; const s = Math.min(1, max / Math.max(w, h)); w = Math.round(w * s); h = Math.round(h * s);
+  const c = document.createElement("canvas"); c.width = w; c.height = h; const ctx = c.getContext("2d", {willReadFrequently:true});
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h); ctx.drawImage(bmp, 0, 0, w, h); bmp.close?.();
+  if (scan) enhanceScan(ctx, w, h);
+  return {blob: await canvasBlob(c, scan ? 0.8 : 0.86), thumb: makeThumb(c)};
+}
+
+/* PDF via pdf.js */
+const PDFCDN = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+let pdfReady = null;
+const loadScript = src => new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("load " + src)); document.head.appendChild(s); });
+function ensurePdf(){
+  if (!pdfReady) pdfReady = (async () => { await loadScript(PDFCDN + "pdf.min.js"); await loadScript(PDFCDN + "pdf.worker.min.js"); window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFCDN + "pdf.worker.min.js"; })().catch(e => { pdfReady = null; throw e; });
+  return pdfReady;
+}
+async function pdfToPages(file, onp){
+  await ensurePdf();
+  const pdf = await pdfjsLib.getDocument({data: new Uint8Array(await file.arrayBuffer()), isEvalSupported:false}).promise;
+  const n = Math.min(pdf.numPages, 60); const pages = []; let text = "";
+  for (let i = 1; i <= n; i++){
+    onp && onp(i, n);
+    const page = await pdf.getPage(i); const v1 = page.getViewport({scale:1});
+    const vp = page.getViewport({scale: Math.min(3, 1800 / Math.max(v1.width, v1.height))});
+    const c = document.createElement("canvas"); c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
+    const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+    await page.render({canvasContext:ctx, viewport:vp}).promise;
+    pages.push({blob: await canvasBlob(c), thumb: i === 1 ? makeThumb(c) : ""});
+    try { const tc = await page.getTextContent(); const t = tc.items.map(x => x.str + (x.hasEOL ? "\n" : " ")).join("").replace(/[ \t]+/g, " ").trim(); if (t) text += (text ? "\n\n" : "") + "— Seite " + i + " —\n" + t; } catch {}
+    page.cleanup();
+  }
+  pdf.destroy(); return {pages, text, more: pdf.numPages > n};
+}
+const isPdf = f => f.type === "application/pdf" || /\.pdf$/i.test(f.name || "");
+const baseName = n => (n || "").replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
+
+/* ================= Import ================= */
+function startImport(files){
+  files = [...files].filter(f => isPdf(f) || /^image\//.test(f.type) || /\.(jpe?g|png|webp|heic|heif|gif)$/i.test(f.name || ""));
+  if (!files.length){ toast("Nur Bilder oder PDFs"); return; }
+  const target = S.addTarget; S.addTarget = null;
+  if (target && item(target)) { doImport(files, {targetId: target, mode: S.lastMode || "scan"}); return; }
+  S.pending = files; S.mode = S.lastMode || "scan";
+  const onlyPdf = files.every(isPdf);
+  const def = S.view === "subjects" && S.subjectId ? S.subjectId : guessSubjectNow();
+  openModal(`<h3>${files.length === 1 ? (onlyPdf ? "PDF" : "Foto") : files.length + " Dateien"} ablegen</h3>
+    <label>Titel (optional)<input id="imTitle" placeholder="${AI.vision ? "leer lassen – die KI findet einen" : "z. B. Arbeitsblatt Kaufvertrag"}"></label>
+    <label>Fach<select id="imSub">${subjectOptions(def)}</select></label>
+    ${onlyPdf ? "" : `<div class="seg"><button data-act="mode" data-m="scan" class="${S.mode === "scan" ? "on" : ""}">📄 Scan (schärfer, ohne Schatten)</button><button data-act="mode" data-m="color" class="${S.mode === "color" ? "on" : ""}">🎨 Original</button></div>`}
+    ${files.length > 1 ? `<label class="chk" style="margin-top:14px"><input type="checkbox" id="imSep"> Jede Datei als eigenes Blatt</label>` : ""}
+    ${AI.vision ? `<label class="chk" style="margin-top:14px"><input type="checkbox" id="imAi" ${S.autoAi !== false ? "checked" : ""}> ✨ Danach automatisch lesen & zusammenfassen</label>` : ""}
+    <button class="primary" data-act="imGo">Speichern</button>`);
+}
+function guessSubjectNow(){
+  const d = new Date(); const hm = pad(d.getHours()) + ":" + pad(d.getMinutes());
+  const l = S.timetable.find(l => l.day === d.getDay() && l.start <= hm && hm <= l.end);
+  return l ? l.subjectId : "inbox";
+}
+async function doImport(files, {title = "", subjectId = "inbox", topicId = "", mode = "scan", sep = false, targetId = null, ai = false}){
+  const groups = sep ? files.map(f => [f]) : [files]; let last = null, failed = 0, cut = false; const made = [];
+  busy("Wird verarbeitet…");
+  try {
+    for (const g of groups){
+      const it = targetId ? item(targetId) : newItem("sheet", {subjectId, topicId, title: title || (sep ? baseName(g[0].name) : "")});
+      for (const f of g){
+        try {
+          if (isPdf(f)){
+            const r = await pdfToPages(f, (i, n) => busy(`PDF wird gelesen… Seite ${i}/${n}`));
+            for (const p of r.pages){ const id = uid(); await store.put("blobs", {id, blob:p.blob}); it.pages.push(id); if (!it.thumb && p.thumb) it.thumb = p.thumb; }
+            if (r.text) it.transcript = (it.transcript ? it.transcript + "\n\n" : "") + r.text;
+            if (!it.title) it.title = baseName(f.name);
+            if (r.more) cut = true;
+          } else {
+            busy(`Bild wird ${mode === "scan" ? "gescannt" : "gespeichert"}…`);
+            const r = await processImage(f, mode === "scan"); const id = uid();
+            await store.put("blobs", {id, blob:r.blob}); it.pages.push(id); if (!it.thumb) it.thumb = r.thumb;
+          }
+        } catch (e) { console.error(e); failed++; }
+      }
+      if (!it.pages.length && !targetId){ await deleteItem(it); continue; }
+      if (!it.title){ it.title = "Blatt vom " + new Date().toLocaleDateString("de-DE", {day:"numeric", month:"numeric"}); it.autoTitle = true; }
+      await saveItem(it); last = it; made.push(it);
+    }
+  } finally { unbusy(); }
+  if (failed) toast(failed + " Datei(en) konnten nicht gelesen werden" + (S.warn ? "" : ""));
+  else if (cut) toast("Nur die ersten 60 PDF-Seiten übernommen");
+  else toast(targetId ? "Seite hinzugefügt ✓" : "Gespeichert ✓");
+  render();
+  if (last && (groups.length === 1 || targetId)){ openItem(last.id); if (ai && AI.vision) aiRead(last); }
+  else if (made.length && ai && AI.vision) { for (const g of made) await aiRead(g, true); }
+}
+
+/* ================= AI ================= */
+async function aiRead(it, quiet = false){
+  if (!AI.vision || !it.pages.length) return;
+  const btn = $("#aiReadBtn"); if (btn && S.openId === it.id){ btn.disabled = true; btn.innerHTML = '<span class="think"><i></i><i></i><i></i></span>&nbsp;Lese das Blatt…'; }
+  if (quiet) busy("✨ Lese „" + it.title + "“…");
+  try {
+    const max = AI.maxImgs; const imgs = [];
+    for (const p of it.pages.slice(0, max)) { const b = await getBlob(p); if (b) imgs.push(b); }
+    const names = allSubjects().map(s => `${s.short} (${s.full})`).join("; ");
+    const prompt = `Das sind ${imgs.length} Foto(s) bzw. Seite(n) eines Arbeitsblatts, Hefteintrags oder Tafelbilds aus der Berufsschule (Ausbildung in Deutschland). Heute ist ${DAYS[new Date().getDay()]}, ${today()}.
+Fächer des Schülers: ${names}.
+Antworte NUR mit einem JSON-Objekt genau in dieser Form:
+{"titel":"kurzer, treffender Titel, max. 6 Wörter","fach":"Kürzel aus der Fächerliste, das am besten passt, oder leer","zusammenfassung":"2–4 einfache Sätze: worum geht es, was ist wichtig zu merken","text":"vollständige Abschrift des gesamten lesbaren Textes in Lesereihenfolge; Absätze mit Zeilenumbrüchen; leere Lücken als ___; handschriftliche Ergänzungen mit übernehmen","aufgaben":[{"titel":"konkrete Aufgabe/Hausaufgabe, die auf dem Blatt steht oder notiert ist (sonst leere Liste)","faellig":"YYYY-MM-DD falls ein Datum erkennbar ist, sonst leer"}],"tags":["3 bis 6 kurze Stichwörter"]}`;
+    const r = await AI.json(prompt, {images: imgs});
+    if (!r || typeof r !== "object") throw {code:"invalid_json"};
+    if (r.titel && (it.autoTitle || !it.title)) { it.title = String(r.titel).slice(0, 90); it.autoTitle = false; }
+    if (r.fach && it.subjectId === "inbox"){ const f = String(r.fach).toLowerCase(); const m = allSubjects().find(s => f.startsWith(s.short.toLowerCase()) || f.includes(s.short.toLowerCase())); if (m) it.subjectId = m.id; }
+    if (r.zusammenfassung) it.summary = String(r.zusammenfassung);
+    if (r.text) it.transcript = String(r.text);
+    if (Array.isArray(r.tags)) it.tags = [...new Set([...(it.tags || []), ...r.tags.map(String).filter(Boolean)])].slice(0, 10);
+    await saveItem(it);
+    const tasks = Array.isArray(r.aufgaben) ? r.aufgaben.filter(t => t && t.titel).map(t => ({titel:String(t.titel), faellig: /^\d{4}-\d{2}-\d{2}$/.test(t.faellig || "") ? t.faellig : ""})) : [];
+    S.found = {id: it.id, tasks};
+    if (!quiet) toast(tasks.length ? `Gelesen ✓ – ${tasks.length} Aufgabe(n) gefunden` : "Gelesen ✓");
+  } catch (e) { const m = aiErr(e); if (m) toast(m); }
+  finally { if (quiet) unbusy(); if (S.openId === it.id) renderDetail(); render(); }
+}
+
+async function askItem(it, q){
+  if (!AI.on || !q.trim()) return;
+  S.itemAnswer = "…"; renderDetail();
+  const ctl = new AbortController(); S._ctl = ctl;
+  try {
+    const opts = {signal: ctl.signal, onText: ({text}) => { S.itemAnswer = text; const a = $("#itemA"); if (a && S.openId === it.id) a.innerHTML = md(text); }};
+    let prompt = `Du hilfst einem Berufsschüler (Ausbildung) beim Verstehen seiner Unterlagen. Antworte auf Deutsch, locker, einfach und kurz (Stichpunkte wenn sinnvoll).\nBlatt: "${it.title}" (Fach ${subj(it.subjectId).short}).\n`;
+    if (it.transcript) prompt += `Text des Blatts:\n"""\n${it.transcript.slice(0, 40000)}\n"""\n`;
+    if (it.text) prompt += `Eigene Notizen:\n${it.text.slice(0, 5000)}\n`;
+    prompt += `\nFrage: ${q}`;
+    if (!it.transcript && AI.vision){ const imgs = []; for (const p of it.pages.slice(0, Math.min(AI.maxImgs, 4))) { const b = await getBlob(p); if (b) imgs.push(b); } opts.images = imgs; prompt = prompt.replace("Blatt:", "Die Bilder zeigen das Blatt:"); }
+    S.itemAnswer = await AI.text(prompt, opts);
+  } catch (e) { S.itemAnswer = (e.text ? e.text + "\n\n" : "") + "⚠️ " + (aiErr(e) || "Abgebrochen"); }
+  if (S.openId === it.id) renderDetail();
+}
+
+function buildContext(scope){
+  const its = S.items.filter(i => scope === "all" || i.subjectId === scope).sort((a,b) => b.updated - a.updated);
+  const parts = []; let size = 0;
+  for (const it of its){
+    const s = subj(it.subjectId);
+    const tp = topicsOf(s).find(t => t.id === it.topicId);
+    let p = `### [[${it.id}]] ${({sheet:"Blatt", task:"Aufgabe", note:"Gedanke"})[it.type]} · Fach ${s.short}${tp ? " › " + tp.name : ""} · erstellt ${new Date(it.created).toLocaleDateString("de-DE")}\nTitel: ${it.title}\n`;
+    if (it.type === "task") p += `Status: ${it.done ? "erledigt" : "offen"}${it.due ? ", fällig " + it.due : ""}\n`;
+    if (it.tags?.length) p += `Stichwörter: ${it.tags.join(", ")}\n`;
+    if (it.summary) p += `Zusammenfassung: ${it.summary}\n`;
+    if (it.transcript) p += `Text: ${it.transcript.slice(0, 7000)}\n`;
+    if (it.text) p += `Notizen: ${it.text.slice(0, 4000)}\n`;
+    if (size + p.length > 170000) break; parts.push(p); size += p.length;
+  }
+  const tt = S.timetable.map(l => `${DAYS[l.day]} ${l.start}-${l.end}: ${subj(l.subjectId).short} (${l.room || ""}, ${l.teacher || ""})`).join("\n");
+  const subs = allSubjects().map(s => `${s.short} = ${s.full}`).join("; ");
+  return `Heute ist ${DAYS[new Date().getDay()]}, ${today()}.\nFächer: ${subs}\nStundenplan:\n${tt}\n\nGESPEICHERTE UNTERLAGEN (${parts.length}):\n\n${parts.join("\n") || "(noch nichts gespeichert)"}`;
+}
+async function askSend(q){
+  if (!AI.on || S.asking || !q.trim()) return;
+  S.asking = true; S.chat.push({role:"user", content:q.trim()}); S.chat.push({role:"assistant", content:""}); renderChat(); scrollEnd();
+  const rules = `Du bist das persönliche "Schul-Gehirn" von Lukas, einem Azubi an der Berufsschule. Unten stehen seine gespeicherten Blätter, Aufgaben und Gedanken. Antworte auf Deutsch, locker, klar und eher kurz (Stichpunkte, wenn es hilft). Stütze dich auf die Unterlagen; wenn du dich auf einen Eintrag beziehst, schreib seine Kennung genau so: [[id]] (z. B. [[abc123]]) – daraus wird ein Link. Wenn etwas nicht in den Unterlagen steht, sag das ehrlich und hilf mit Allgemeinwissen weiter. Bei Quizfragen: Fragen stellen, Lösungen erst am Ende.\n\n` + buildContext(S.askScope);
+  const turns = [{role:"user", content:rules}, {role:"assistant", content:"Alles klar, ich kenne jetzt deine Unterlagen. Was willst du wissen?"}, ...S.chat.slice(0, -1).slice(-12)];
+  const ctl = new AbortController(); S._ctl = ctl;
+  try {
+    S.chat[S.chat.length - 1].content = await AI.text(turns, {signal:ctl.signal, onText: ({text}) => { S.chat[S.chat.length - 1].content = text; const el = $("#lastAi"); if (el) el.innerHTML = md(text); }});
+  } catch (e) { const last = S.chat[S.chat.length - 1]; last.content = (e.text ? e.text + "\n\n" : "") + "⚠️ " + (aiErr(e) || "Abgebrochen"); }
+  S.asking = false; renderChat(); scrollEnd();
+}
+const scrollEnd = () => setTimeout(() => window.scrollTo({top: document.body.scrollHeight, behavior:"smooth"}), 30);
+
+/* ================= Backup ================= */
+const blobToDataURL = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(b); });
+function dataURLToBlob(u){ const [h, d] = u.split(","); const mime = (h.match(/data:([^;]+)/) || [])[1] || "application/octet-stream"; const bin = atob(d); const a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return new Blob([a], {type:mime}); }
+async function saveFile(name, blob){
+  if (DL){ try { await DL.save({filename:name, data:blob}); return true; } catch (e) { if (e?.code !== "declined") toast("Speichern hier nicht möglich"); return false; } }
+  if (window.claude){ toast("Speichern ist hier gerade nicht möglich"); return false; }
+  if (/iphone|ipad|ipod|android/i.test(navigator.userAgent) && navigator.canShare){
+    try { const f = new File([blob], name, {type: blob.type || (name.endsWith(".json") ? "application/json" : "image/jpeg")}); if (navigator.canShare({files:[f]})) { await navigator.share({files:[f]}); return true; } }
+    catch (e) { if (e && e.name === "AbortError") return false; }
+  }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 8000); return true;
+}
+async function exportBackup(){
+  busy("Backup wird erstellt…");
+  try {
+    flushSaves();
+    const blobs = await store.all("blobs");
+    const parts = ['{"app":"schulgehirn","v":1,"exported":' + Date.now() + ',"subjects":' + JSON.stringify(S.subjects) + ',"timetable":' + JSON.stringify(S.timetable) + ',"items":' + JSON.stringify(S.items) + ',"blobs":['];
+    for (let i = 0; i < blobs.length; i++){ busy(`Backup… ${i+1}/${blobs.length}`); parts.push((i ? "," : "") + JSON.stringify({id:blobs[i].id, d: await blobToDataURL(blobs[i].blob)})); }
+    parts.push("]}");
+    const file = new Blob(parts, {type:"application/json"});
+    unbusy();
+    if (await saveFile(`schulgehirn-backup-${today()}.json`, file)){ S.lastBackup = Date.now(); setMeta("lastBackup", S.lastBackup); toast("Backup gespeichert ✓"); render(); }
+  } catch (e) { console.error(e); unbusy(); toast("Backup fehlgeschlagen"); }
+}
+async function importBackup(file){
+  let data;
+  try { data = JSON.parse(await file.text()); } catch { toast("Das ist keine Backup-Datei"); return; }
+  if (data?.app !== "schulgehirn"){ toast("Das ist keine Schul-Gehirn-Datei"); return; }
+  openModal(`<h3>Backup laden</h3><p class="sub">${(data.items||[]).length} Einträge vom ${new Date(data.exported).toLocaleDateString("de-DE")}.</p>
+    <button class="sheetbtn" data-act="impMerge"><span class="em">➕</span><span><b>Dazu packen</b><small>Bestehendes bleibt, Backup kommt dazu</small></span></button>
+    <button class="sheetbtn" data-act="impReplace"><span class="em">♻️</span><span><b>Ersetzen</b><small>Alles hier wird durch das Backup ersetzt</small></span></button>`);
+  S._import = data;
+}
+async function applyImport(replace){
+  const data = S._import; S._import = null; closeModal(); busy("Backup wird geladen…");
+  try {
+    if (replace){ for (const s of ["subjects","items","blobs"]) await store.clear(s); S.subjects = []; S.items = []; urlCache.forEach(u => URL.revokeObjectURL(u)); urlCache.clear(); }
+    const bl = data.blobs || [];
+    for (let i = 0; i < bl.length; i++){ if (i % 5 === 0) busy(`Backup wird geladen… ${i+1}/${bl.length}`); await store.put("blobs", {id:bl[i].id, blob:dataURLToBlob(bl[i].d)}); }
+    for (const s of data.subjects || []){ await store.put("subjects", s); const k = S.subjects.findIndex(x => x.id === s.id); if (k >= 0) S.subjects[k] = s; else S.subjects.push(s); }
+    for (const it of data.items || []){ await store.put("items", it); const k = S.items.findIndex(x => x.id === it.id); if (k >= 0) S.items[k] = it; else S.items.push(it); }
+    if (replace || !S.timetable.length) { S.timetable = data.timetable || S.timetable; saveTT(); }
+    toast("Backup geladen ✓");
+  } catch (e) { console.error(e); toast("Laden fehlgeschlagen"); }
+  unbusy(); render();
+}
+
+/* ================= Dialogs ================= */
+function addSheet(){
+  openModal(`<h3>Was willst du ablegen?</h3>
+  <button class="sheetbtn" data-act="cam"><span class="em">📷</span><span><b>Blatt fotografieren</b><small>Wird automatisch wie ein Scan aufbereitet</small></span></button>
+  <button class="sheetbtn" data-act="files"><span class="em">🖼️</span><span><b>Fotos oder PDF hochladen</b><small>Aus Galerie oder Dateien, auch mehrere</small></span></button>
+  <button class="sheetbtn" data-act="newtask"><span class="em">✅</span><span><b>Aufgabe / Hausaufgabe</b><small>Mit Fälligkeitsdatum</small></span></button>
+  <button class="sheetbtn" data-act="newnote"><span class="em">💭</span><span><b>Gedanke / Notiz</b><small>Einfach aufschreiben</small></span></button>`);
+}
+function taskDialog(){
+  const def = S.view === "subjects" && S.subjectId ? S.subjectId : "inbox";
+  S._tdue = "";
+  openModal(`<h3>Neue Aufgabe</h3><input id="tTitle" placeholder="Was ist zu tun?" style="margin-top:10px" enterkeyhint="done">
+    <label>Fach<select id="tSub">${subjectOptions(def)}</select></label>
+    <label>Fällig</label><div class="chips" id="tChips">${[["Heute",0],["Morgen",1],["Übermorgen",2],["In 1 Woche",7]].map(([l,n]) => `<button data-act="tChip" data-n="${n}">${l}</button>`).join("")}${nextLessonChip(def)}</div>
+    <input type="date" id="tDue" style="margin-top:10px">
+    <button class="primary" data-act="tSave">Aufgabe speichern</button>`);
+  setTimeout(() => $("#tTitle")?.focus(), 60);
+}
+function nextLessonDate(sid){
+  const ls = S.timetable.filter(l => l.subjectId === sid); if (!ls.length) return "";
+  for (let off = 1; off <= 7; off++){ const d = new Date(); d.setDate(d.getDate() + off); if (ls.some(l => l.day === d.getDay())) return isoOf(d); }
+  return "";
+}
+function nextLessonChip(sid){ const d = nextLessonDate(sid); return d ? `<button data-act="tChip" data-d="${d}">Nächste ${esc(subj(sid).short)}-Stunde</button>` : ""; }
+function subjectDialog(id){
+  const s = id ? subj(id) : {short:"", full:"", emoji:EMOJIS[S.subjects.length % EMOJIS.length], color:COLORS[S.subjects.length % COLORS.length]};
+  S._sd = {id, emoji:s.emoji, color:s.color};
+  openModal(`<h3>${id ? "Fach bearbeiten" : "Neues Fach"}</h3>
+    <label>Kürzel (wie im Stundenplan)<input id="sShort" value="${esc(s.short)}" placeholder="z. B. WBL" maxlength="14"></label>
+    <label>Voller Name<input id="sFull" value="${esc(s.full || "")}" placeholder="z. B. Wirtschafts- und Betriebslehre"></label>
+    <label>Symbol</label><div class="emojis">${EMOJIS.map(e => `<button data-act="sEmoji" data-e="${e}" class="${e === s.emoji ? "on" : ""}">${e}</button>`).join("")}</div>
+    <label>Farbe</label><div class="swatches">${COLORS.map(c => `<button data-act="sColor" data-c="${c}" style="background:${c}" class="${c === s.color ? "on" : ""}" aria-label="Farbe"></button>`).join("")}</div>
+    <button class="primary" data-act="sSave">Speichern</button>
+    ${id ? `<button class="btn danger" style="width:100%;margin-top:10px;box-shadow:none" data-act="sDel">Fach löschen</button>` : ""}`);
+}
+function topicDialog(id){
+  const s = subj(S.subjectId); const t = id ? topicsOf(s).find(t => t.id === id) : null; S._tp = id;
+  openModal(`<h3>${t ? "Unterordner bearbeiten" : "Neuer Unterordner in " + esc(s.short)}</h3><p class="sub">z. B. ein Lernfeld, Thema oder eine Klausur</p>
+    <input id="tpName" value="${esc(t ? t.name : "")}" placeholder="z. B. Kaufvertrag" style="margin-top:12px" enterkeyhint="done">
+    <button class="primary" data-act="tpSave">${t ? "Speichern" : "Anlegen"}</button>${t ? `<button class="btn danger" style="width:100%;margin-top:10px;box-shadow:none" data-act="tpDel">Unterordner löschen</button>` : ""}`);
+  setTimeout(() => $("#tpName")?.focus(), 60);
+}
+function lessonDialog(){
+  openModal(`<h3>Stunde hinzufügen</h3>
+    <div class="row"><label>Tag<select id="lDay">${[1,2,3,4,5,6].map(d => `<option value="${d}">${DAYS[d]}</option>`).join("")}</select></label><label>Fach<select id="lSub">${allSubjects().map(s => `<option value="${s.id}">${s.emoji} ${esc(s.short)}</option>`).join("")}</select></label></div>
+    <div class="row"><label>Von<input type="time" id="lStart" value="07:30"></label><label>Bis<input type="time" id="lEnd" value="09:00"></label></div>
+    <div class="row"><label>Raum<input id="lRoom" placeholder="C 103"></label><label>Lehrer<input id="lTeach" placeholder="Kürzel"></label></div>
+    <button class="primary" data-act="lSave">Hinzufügen</button>`);
+}
+
+/* ================= Events ================= */
+const A = {
+  go: el => { S.view = el.dataset.v; S._noFocus = false; if (S.openId) closeItem(); render(); window.scrollTo(0, 0); },
+  sub: el => { const same = S.view === "subjects" && S.subjectId === el.dataset.id; S.view = "subjects"; S.subjectId = el.dataset.id; if (!same) { S.topicId = "all"; S.tab = "all"; } render(); if (!same) window.scrollTo(0, 0); },
+  topic: el => { S.topicId = el.dataset.id; render(); },
+  newTopic: () => topicDialog(null),
+  editTopic: () => topicDialog(S.topicId),
+  tpSave: async () => { const name = $("#tpName").value.trim(); if (!name) { $("#tpName").focus(); return; } const s = S.subjects.find(x => x.id === S.subjectId); if (!s) return; s.topics = s.topics || []; const id = S._tp; if (id) { const t = s.topics.find(t => t.id === id); if (t) t.name = name; } else { const t = {id:uid(), name}; s.topics.push(t); S.topicId = t.id; } await store.put("subjects", s); closeModal(); render(); },
+  tpDel: async () => { const s = S.subjects.find(x => x.id === S.subjectId); const id = S._tp; const n = S.items.filter(i => i.topicId === id).length; if (!(await confirmBox("Unterordner löschen?", n ? `Die ${n} Einträge darin bleiben in ${s.short} erhalten.` : "Der Unterordner wird entfernt."))) return; s.topics = s.topics.filter(t => t.id !== id); for (const it of S.items.filter(i => i.topicId === id)) { it.topicId = ""; await store.put("items", it); } await store.put("subjects", s); S.topicId = "all"; render(); },
+  tab: el => { S.tab = el.dataset.t; render(); },
+  add: () => { S.addTarget = null; addSheet(); },
+  cam: () => { closeModal(); S.addTarget = null; $("#camIn").value = ""; $("#camIn").click(); },
+  files: () => { closeModal(); S.addTarget = null; $("#fileIn").value = ""; $("#fileIn").click(); },
+  addCam: () => { S.addTarget = S.openId; $("#camIn").value = ""; $("#camIn").click(); },
+  addFile: () => { S.addTarget = S.openId; $("#fileIn").value = ""; $("#fileIn").click(); },
+  newtask: () => { closeModal(); taskDialog(); },
+  newnote: () => { closeModal(); const it = newItem("note"); openItem(it.id); setTimeout(() => $('#detail textarea[data-f="text"]')?.focus(), 80); },
+  open: el => { closeModal(); openItem(el.dataset.id); },
+  dclose: () => closeItem(),
+  mclose: () => closeModal(),
+  cOk: () => S._confirm && S._confirm(true),
+  cNo: () => S._confirm && S._confirm(false),
+  toggle: async el => { const t = item(el.dataset.id); if (!t) return; t.done = !t.done; t.doneAt = t.done ? Date.now() : 0; await saveItem(t); if (t.done) toast("Erledigt ✓"); if (S.openId) renderDetail(); render(); },
+  setDue: async el => { const it = item(S.openId); it.due = el.dataset.n === "" ? "" : addDays(+el.dataset.n); await saveItem(it); renderDetail(); },
+  delitem: async () => { const it = item(S.openId); if (!it) return; if (await confirmBox("Wirklich löschen?", `„${it.title || "Eintrag"}“ wird gelöscht.`)) { await deleteItem(it); closeItem(); toast("Gelöscht"); } },
+  zoom: el => { openModal(`<div class="zoomwrap"><img src="${el.src}" alt=""></div><div class="mrow"><button class="btn" data-act="zIn">＋ Zoom</button><button class="btn primary" data-act="mclose">Schließen</button></div>`); },
+  zIn: () => { const i = $(".zoomwrap img"); i.style.width = i.style.width === "220%" ? "100%" : "220%"; },
+  rot: async el => {
+    const it = item(S.openId), i = +el.dataset.i, id = it.pages[i]; busy("Drehe…");
+    try { const bmp = await createImageBitmap(await getBlob(id)); const c = document.createElement("canvas"); c.width = bmp.height; c.height = bmp.width; const ctx = c.getContext("2d"); ctx.translate(c.width, 0); ctx.rotate(Math.PI / 2); ctx.drawImage(bmp, 0, 0); await store.put("blobs", {id, blob: await canvasBlob(c)}); dropUrl(id); if (i === 0) it.thumb = makeThumb(c); await saveItem(it); } catch (e) { toast("Drehen fehlgeschlagen"); }
+    unbusy(); renderDetail();
+  },
+  delpage: async el => {
+    const it = item(S.openId), i = +el.dataset.i;
+    if (!(await confirmBox("Seite löschen?", `Seite ${i+1} wird entfernt.`))) return;
+    const id = it.pages.splice(i, 1)[0]; await store.del("blobs", id); dropUrl(id);
+    if (i === 0){ if (it.pages[0]) { const b = await getBlob(it.pages[0]); const bmp = await createImageBitmap(b); const c = document.createElement("canvas"); c.width = bmp.width; c.height = bmp.height; c.getContext("2d").drawImage(bmp, 0, 0); it.thumb = makeThumb(c); } else it.thumb = ""; }
+    await saveItem(it); renderDetail();
+  },
+  savepage: async el => { const it = item(S.openId), i = +el.dataset.i; const b = await getBlob(it.pages[i]); if (b) saveFile(`${(it.title || "blatt").replace(/[^\wäöüÄÖÜß -]+/g, "").trim() || "blatt"}-s${i+1}.jpg`, b); },
+  aiRead: () => { const it = item(S.openId); if (it) aiRead(it); },
+  askItem: () => { const it = item(S.openId); const q = $("#itemQ")?.value || ""; if (it && q.trim()) askItem(it, q); },
+  useTask: async el => { const it = item(S.openId); const t = S.found?.tasks[+el.dataset.i]; if (!t || t.added) return; const nt = newItem("task", {title:t.titel, due:t.faellig || nextLessonDate(it.subjectId), subjectId:it.subjectId, fromId:it.id}); await saveItem(nt); t.added = true; toast("Aufgabe angelegt ✓"); renderDetail(); },
+  mode: el => { S.mode = el.dataset.m; document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b === el)); },
+  imGo: () => { const files = S.pending || []; S.pending = null; const sid = $("#imSub").value; const opts = {title: $("#imTitle").value.trim(), subjectId: sid, topicId: S.view === "subjects" && sid === S.subjectId && S.topicId !== "all" ? S.topicId : "", mode: S.mode, sep: !!$("#imSep")?.checked, ai: !!$("#imAi")?.checked}; S.lastMode = S.mode; if ($("#imAi")) S.autoAi = opts.ai; setMeta("prefs", {lastMode:S.lastMode, autoAi:S.autoAi}); closeModal(); doImport(files, opts); },
+  tChip: el => { const d = el.dataset.d || addDays(+el.dataset.n); $("#tDue").value = d; document.querySelectorAll("#tChips button").forEach(b => b.classList.toggle("on", b === el)); },
+  tSave: async () => { const title = $("#tTitle").value.trim(); if (!title){ $("#tTitle").focus(); return; } const sid = $("#tSub").value; const t = newItem("task", {title, subjectId: sid, topicId: S.view === "subjects" && sid === S.subjectId && S.topicId !== "all" ? S.topicId : "", due: $("#tDue").value}); await saveItem(t); closeModal(); toast("Aufgabe gespeichert ✓"); render(); },
+  newSub: () => subjectDialog(null),
+  editSub: el => subjectDialog(el.dataset.id),
+  sEmoji: el => { S._sd.emoji = el.dataset.e; document.querySelectorAll(".emojis button").forEach(b => b.classList.toggle("on", b === el)); },
+  sColor: el => { S._sd.color = el.dataset.c; document.querySelectorAll(".swatches button").forEach(b => b.classList.toggle("on", b === el)); },
+  sSave: async () => {
+    const short = $("#sShort").value.trim(); if (!short){ $("#sShort").focus(); return; }
+    const d = S._sd; let s = d.id ? S.subjects.find(x => x.id === d.id) : null;
+    if (!s){ s = {id:uid(), created:Date.now(), order:S.subjects.length + 1}; S.subjects.push(s); }
+    Object.assign(s, {short, full: $("#sFull").value.trim(), emoji: d.emoji, color: d.color});
+    await store.put("subjects", s); closeModal(); render();
+  },
+  sDel: async () => {
+    const id = S._sd.id; const s = subj(id); const n = S.items.filter(i => i.subjectId === id).length;
+    if (!(await confirmBox(`${s.short} löschen?`, n ? `${n} Einträge kommen nach „Unsortiert“ – nichts geht verloren.` : "Das Fach wird entfernt."))) return;
+    for (const it of S.items.filter(i => i.subjectId === id)){ it.subjectId = "inbox"; await store.put("items", it); }
+    S.subjects = S.subjects.filter(x => x.id !== id); await store.del("subjects", id);
+    S.timetable = S.timetable.filter(l => l.subjectId !== id); saveTT();
+    S.subjectId = null; render();
+  },
+  addLesson: () => lessonDialog(),
+  lSave: () => { S.timetable.push({id:uid(), day:+$("#lDay").value, subjectId:$("#lSub").value, start:$("#lStart").value || "07:30", end:$("#lEnd").value || "09:00", room:$("#lRoom").value.trim(), teacher:$("#lTeach").value.trim()}); saveTT(); closeModal(); render(); },
+  delLesson: el => { S.timetable = S.timetable.filter(l => l.id !== el.dataset.id); saveTT(); render(); },
+  exportB: () => exportBackup(),
+  install: async () => { if (!installEvt) return; installEvt.prompt(); try { await installEvt.userChoice; } catch {} installEvt = null; render(); },
+  hideInstall: () => { S.hideInstall = true; setMeta("hideInstall", 1); render(); },
+  gSave: async () => { S.gkey = $("#gkey").value.trim(); await setMeta("gkey", S.gkey); toast(S.gkey ? "KI-Schlüssel gespeichert ✓" : "Schlüssel entfernt"); render(); },
+  gTest: async () => {
+    const k = $("#gkey").value.trim(); const st = $("#gStat"); if (!k) { st.textContent = "Erst Schlüssel einfügen."; return; }
+    if (window.claude) { st.textContent = "In Claude wird die KI über Claude genutzt – der Test geht in der installierten App."; return; }
+    const old = S.gkey; S.gkey = k; st.textContent = "Teste…";
+    const savedSample = SAMPLE; SAMPLE = null;
+    try { const t = await gemini([{role:"user", content:"Antworte nur mit: Läuft!"}]); st.textContent = "✓ " + (t || "Läuft").trim().slice(0, 40) + " – jetzt Speichern tippen"; }
+    catch (e) { st.textContent = "✗ " + (aiErr(e) || "Fehler"); }
+    SAMPLE = savedSample; S.gkey = old;
+  },
+  importB: () => { $("#bakIn").value = ""; $("#bakIn").click(); },
+  impMerge: () => applyImport(false),
+  impReplace: async () => { const d = S._import; if (await confirmBox("Alles ersetzen?", "Alles, was gerade hier ist, wird durch das Backup ersetzt.", "Ersetzen")) { S._import = d; applyImport(true); } },
+  wipe: async () => { if (!(await confirmBox("Alles löschen?", "Alle Blätter, Aufgaben und Gedanken werden gelöscht. Mach vorher ein Backup!", "Alles löschen"))) return; for (const s of ["items","blobs"]) await store.clear(s); S.items = []; urlCache.forEach(u => URL.revokeObjectURL(u)); urlCache.clear(); toast("Alles gelöscht"); render(); },
+  scope: el => { S.askScope = el.dataset.id; render(); },
+  sugg: el => askSend(el.textContent),
+  askSend: () => { const t = $("#askIn"); const q = t.value; t.value = ""; askSend(q); },
+  askClear: () => { S.chat = []; renderChat(); }
+};
+document.addEventListener("click", e => { const el = e.target.closest("[data-act]"); if (!el) return; const f = A[el.dataset.act]; if (f){ e.preventDefault(); f(el, e); } });
+document.addEventListener("input", e => {
+  if (e.target.id === "q"){ S.query = e.target.value; renderSearch(); return; }
+  const f = e.target.dataset?.f; if (!f || !S.openId || !e.target.closest("#detail")) return;
+  const it = item(S.openId); if (!it) return;
+  let v = e.target.value;
+  if (f === "tags") v = v.split(",").map(s => s.trim()).filter(Boolean);
+  if (f === "title") it.autoTitle = false;
+  if (f === "subjectId") it.topicId = "";
+  it[f] = v; it.updated = Date.now(); saveItemSoon(it);
+  if (f === "subjectId" || f === "due"){ renderDetail(); }
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey){
+    if (e.target.id === "askIn"){ e.preventDefault(); A.askSend(); }
+    else if (e.target.id === "itemQ"){ e.preventDefault(); A.askItem(); }
+    else if (e.target.id === "tTitle"){ e.preventDefault(); A.tSave(); }
+    else if (e.target.id === "tpName"){ e.preventDefault(); A.tpSave(); }
+  }
+  if (e.key === "Escape"){ if (!$("#modal").hidden) closeModal(); else if (S.openId) closeItem(); }
+});
+$("#camIn").addEventListener("change", e => { if (e.target.files.length) startImport(e.target.files); });
+$("#fileIn").addEventListener("change", e => { if (e.target.files.length) startImport(e.target.files); });
+$("#bakIn").addEventListener("change", e => { if (e.target.files[0]) importBackup(e.target.files[0]); });
+let dragN = 0;
+window.addEventListener("dragenter", e => { if ([...(e.dataTransfer?.types || [])].includes("Files")){ dragN++; $("#drop").classList.add("on"); } });
+window.addEventListener("dragleave", () => { if (--dragN <= 0){ dragN = 0; $("#drop").classList.remove("on"); } });
+window.addEventListener("dragover", e => e.preventDefault());
+window.addEventListener("drop", e => { e.preventDefault(); dragN = 0; $("#drop").classList.remove("on"); if (e.dataTransfer?.files?.length){ if (!S.openId || item(S.openId)?.type !== "sheet") S.addTarget = null; else S.addTarget = S.openId; startImport(e.dataTransfer.files); } });
+window.addEventListener("paste", e => { const fs = [...(e.clipboardData?.files || [])]; if (fs.length && !e.target.closest?.("input,textarea")){ S.addTarget = null; startImport(fs); } });
+window.addEventListener("pagehide", flushSaves);
+document.addEventListener("visibilitychange", () => { if (document.hidden) flushSaves(); });
+
+/* ================= Init ================= */
+async function init(){
+  try { if (!window.indexedDB) throw 0; db = await openDB(); }
+  catch { idbOK = false; S.warn = "Achtung: In dieser Ansicht kann nichts dauerhaft gespeichert werden. Öffne die App direkt (z. B. als Datei im Browser), oder sichere regelmäßig ein Backup."; }
+  try {
+    S.subjects = await store.all("subjects"); S.items = await store.all("items");
+    S.timetable = (await getMeta("timetable")) || [];
+    S.lastBackup = (await getMeta("lastBackup")) || 0;
+    const prefs = await getMeta("prefs"); if (prefs){ S.lastMode = prefs.lastMode; S.autoAi = prefs.autoAi; }
+    S.gkey = (await getMeta("gkey")) || ""; S.gmodel = (await getMeta("gmodel")) || ""; S.hideInstall = !!(await getMeta("hideInstall"));
+    if (!(await getMeta("seeded"))){ seed(); await saveSubjects(); await saveTT(); await setMeta("seeded", 1); }
+  } catch (e) { console.error(e); if (!S.subjects.length) seed(); }
+  render();
+  initCaps();
+  if ("serviceWorker" in navigator && location.protocol === "https:" && !window.claude) navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+if (location.hash === "#scan") setTimeout(() => { history.replaceState(null, "", location.pathname); addSheet(); }, 300);
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; if (S.view === "home") render(); });
+window.addEventListener("appinstalled", () => { installEvt = null; toast("Installiert ✓"); render(); });
+init();
+</script>
+</body>
+</html>
