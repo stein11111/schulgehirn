@@ -981,15 +981,17 @@ function wrapText(text, maxW, font){
   }
   return out;
 }
-function fieldLayout(f, W, H, style){
-  const bx = f.x * W, by = f.y * H, bh = Math.max(10, f.h * H), sc = style === "print" ? .8 : 1, lh = 1.15, minPx = H * .014;
+function fieldLayout(f, W, H, style, base){
+  const bx = f.x * W, by = f.y * H, bh = Math.max(10, f.h * H), lh = 1.15, minPx = H * .011;
+  // Grundgröße = passend zur gedruckten Schrift des Blatts (Handschrift etwas größer, weil Caveat kleiner wirkt)
+  const B = Math.max(H * .011, Math.min(H * .032, (base || .016) * H * (style === "print" ? 1.05 : 1.7)));
   let bw = Math.max(10, f.w * W);
   if (f.kind === "kreuz"){ const px = Math.min(bw, bh) * 1.15; return {px, font:fontOf(style, px), center:true, lines:[{t:"X", x:bx + bw / 2, y:by + bh / 2 + px * .33}]}; }
   let px, lines;
   if (f.rules && f.rules.length){
     const sp = (f.spacing || f.h / f.rules.length) * H;
-    px = f.px ? f.px * W : Math.min(sp * .9, H * .034) * sc;
-    const floor = f.rules.length === 1 ? Math.max(minPx, sp * .7 * sc) : minPx;
+    px = f.px ? f.px * W : (f.rules.length > 1 ? Math.min(B, sp * .88) : B);
+    const floor = f.rules.length === 1 ? Math.max(minPx, B * .8) : minPx;
     for (let k = 0; k < 60; k++){ lines = wrapText(f.text, bw, fontOf(style, px)); if (f.px || lines.length <= f.rules.length || px < floor) break; px *= .93; }
     if (!f.px && lines.length > f.rules.length && f.rules.length === 1){ // kurze Lücke: lieber nach rechts verlängern als winzig schreiben
       mctx.font = fontOf(style, px); const need = mctx.measureText(String(f.text).replace(/\s+/g, " ")).width + px * .3;
@@ -998,7 +1000,8 @@ function fieldLayout(f, W, H, style){
     const last = f.rules[f.rules.length - 1] * H;
     return {px, font:fontOf(style, px), lines: lines.map((t, i) => ({t, x:bx + px * .15, y:(i < f.rules.length ? f.rules[i] * H : last + (i - f.rules.length + 1) * sp) - px * .14}))};
   }
-  px = f.px ? f.px * W : Math.min(f.kind === "luecke" ? bh * .95 : H * .027, bh * .95) * sc;
+  px = f.px ? f.px * W : (f.kind === "luecke" ? Math.max(Math.min(B, bh * 1.05), B * .8) : Math.min(B, bh * .95));
+  if (!f.px && f.kind === "luecke"){ mctx.font = fontOf(style, px); const need = mctx.measureText(String(f.text).replace(/\s+/g, " ")).width + px * .3; if (need > bw) bw = Math.min(need, W * .96 - bx); }
   for (let k = 0; k < 60; k++){ lines = wrapText(f.text, bw - px * .2, fontOf(style, px)); if (f.px || lines.length * px * lh <= bh * 1.02 || px < minPx) break; px *= .93; }
   const total = lines.length * px * lh;
   const top = f.kind === "luecke" || f.kind === "linie" ? by + bh - total : f.kind === "tabelle" ? by + Math.max(0, (bh - total) / 2) : by + Math.min(px * .15, Math.max(0, bh - total));
@@ -1008,9 +1011,10 @@ function renderFilled(bmp, F, style, labels, target){
   const W = bmp.width, H = bmp.height, c = target || document.createElement("canvas");
   if (c.width !== W) c.width = W; if (c.height !== H) c.height = H;
   const ctx = c.getContext("2d"); ctx.clearRect(0, 0, W, H); ctx.drawImage(bmp, 0, 0);
+  if (F && F.fields?.length && F.base === undefined){ try { F.base = measureTextSize(grayOf(bmp)); } catch { F.base = null; } }
   for (const f of (F?.fields || [])){
     if (!f.text) continue;
-    const L = fieldLayout(f, W, H, style);
+    const L = fieldLayout(f, W, H, style, F.base);
     ctx.font = L.font; ctx.fillStyle = INK; ctx.textBaseline = "alphabetic"; ctx.textAlign = L.center ? "center" : "left";
     for (const l of L.lines) ctx.fillText(l.t, l.x, l.y);
     if (labels){
@@ -1028,6 +1032,20 @@ function grayOf(bmp){
   const d = ctx.getImageData(0, 0, w, h).data, g = new Uint8Array(w * h);
   for (let i = 0, j = 0; j < g.length; i += 4, j++) g[j] = (d[i] * .299 + d[i + 1] * .587 + d[i + 2] * .114) | 0;
   return {g, w, h};
+}
+/* Größe der gedruckten Schrift auf dem Blatt messen (Höhe einer Textzeile, normiert) */
+function measureTextSize(G){
+  const {g, w, h} = G, x0 = Math.round(w * .05), x1 = Math.round(w * .95), fr = new Float32Array(h);
+  for (let y = 0; y < h; y++){ let n = 0, t = 0; for (let x = x0; x < x1; x += 2){ t++; if (g[y * w + x] < 145) n++; } fr[y] = n / t; }
+  const bands = []; let s = -1, gap = 0;
+  for (let y = 0; y < h; y++){
+    const txt = fr[y] > .003 && fr[y] < .42;
+    if (txt){ if (s < 0) s = y; gap = 0; }
+    else if (s >= 0 && ++gap > 1){ bands.push(y - gap - s + 1); s = -1; gap = 0; }
+  }
+  const hs = bands.filter(b => b >= h * .006 && b <= h * .035).sort((a, b) => a - b);
+  if (hs.length < 3) return null;
+  return hs[Math.floor(hs.length * .5)] / h;
 }
 /* Box an echte Linien / Kästen auf dem Blatt anpassen */
 function snapField(f, G){
@@ -1117,7 +1135,7 @@ Deine Aufgabe: Fülle diese Seite PERFEKT aus – so, wie ein sehr guter Schüle
 Antworte NUR mit JSON: {"felder":[{"aufgabe":"Nr.","art":"luecke|linie|feld|tabelle|kreuz","box_2d":[ymin,xmin,ymax,xmax],"text":"Antwort"}]}
 Wenn die Seite keine Antwortfelder hat: {"felder":[]}`, {images:[blob], tier:"complex"});
       let fields = parseFields(r?.felder).map(f => snapField(f, G));
-      it.fills[pid] = {fields, style:it.fillStyle || "hand"};
+      it.fills[pid] = {fields, style:it.fillStyle || "hand", base:measureTextSize(G)};
       refresh();
       if (fields.length){
         setFillStatus(key, lbl + "Selbstkontrolle wie ein Lehrer…");
@@ -1659,7 +1677,7 @@ const A = {
   fillStyle: async el => { const it = item(S.openId); it.fillStyle = el.dataset.s; await saveItem(it); renderDetail(); },
   pdf: () => { const it = item(S.openId); if (it) exportPdf(it); },
   zoomcv: el => { openModal(`<div class="zoomwrap"><img src="${el.toDataURL("image/jpeg", .9)}" alt=""></div><div class="mact"><button class="btn" data-act="zIn">Zoom</button><button class="btn primary" data-act="mclose">Schließen</button></div>`); },
-  feSize: el => { const st = S._fe; if (!st) return; const d = +el.dataset.d; if (!d){ st.f.px = null; } else { const bmp = bmpCache.get(st.pid); const W = bmp ? bmp.width : 1600, H = bmp ? bmp.height : 2200; const cur = st.f.px ? st.f.px * W : fieldLayout(st.f, W, H, st.it.fillStyle).px; st.f.px = cur * (d > 0 ? 1.15 : .87) / W; } st.f.text = $("#feText").value; saveItemSoon(st.it); redrawPage(st.it, st.pid); },
+  feSize: el => { const st = S._fe; if (!st) return; const d = +el.dataset.d; if (!d){ st.f.px = null; } else { const bmp = bmpCache.get(st.pid); const W = bmp ? bmp.width : 1600, H = bmp ? bmp.height : 2200; const cur = st.f.px ? st.f.px * W : fieldLayout(st.f, W, H, st.it.fillStyle, st.it.fills[st.pid]?.base).px; st.f.px = cur * (d > 0 ? 1.15 : .87) / W; } st.f.text = $("#feText").value; saveItemSoon(st.it); redrawPage(st.it, st.pid); },
   feSave: () => { const st = S._fe; if (!st) return; st.f.text = $("#feText").value.trim(); st.isNew = false; if (!st.f.text) st.it.fills[st.pid].fields = st.it.fills[st.pid].fields.filter(x => x !== st.f); saveItemSoon(st.it); closeModal(); renderDetail(); },
   feDel: () => { const st = S._fe; if (!st) return; st.it.fills[st.pid].fields = st.it.fills[st.pid].fields.filter(x => x !== st.f); st.isNew = false; saveItemSoon(st.it); closeModal(); renderDetail(); },
   reExplain: () => { const it = item(S.openId); if (it) aiExplain(it, true); },
