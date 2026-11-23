@@ -388,7 +388,9 @@ const thinking = (t = "denkt nach") => `<span class="thinking"><i></i><i></i><i>
 
 /* ---------- State & Storage ---------- */
 const S = {view:"home", subjectId:null, topicId:"all", filter:"all", query:"", openId:null, dtab:"learn", tool:null, qOpen:-1,
-  subjects:[], items:[], timetable:[], chat:[], asking:false, askScope:"all", lseg:"ueben", live:{}, lastBackup:0, warn:"", addTarget:null, gkey:"", gmodel:""};
+  subjects:[], items:[], timetable:[], chat:[], asking:false, askScope:"all", lseg:"ueben", live:{}, lastBackup:0, warn:"", addTarget:null, gkey:"", gmodel:"", me:{name:"Lukas St.", klasse:"IT62"}};
+const deDate = () => new Date().toLocaleDateString("de-DE", {day:"2-digit", month:"2-digit", year:"numeric"});
+const personal = () => `Persönliche Angaben des Schülers (IMMER so eintragen, wenn es auf der Seite Felder/Linien dafür gibt, z. B. "Name:", "Klasse:", "Datum:"): Name = "${S.me.name}", Klasse = "${S.me.klasse}", Datum = "${deDate()}".`;
 let db = null, idbOK = true;
 const mem = {subjects:new Map(), items:new Map(), blobs:new Map(), meta:new Map()};
 function openDB(){
@@ -814,6 +816,9 @@ function vMore(){
   const lb = S.lastBackup ? new Date(S.lastBackup).toLocaleDateString("de-DE") : "noch nie";
   const tt = [...S.timetable].sort((a, b) => a.day - b.day || a.start.localeCompare(b.start));
   return `<div class="pagehead"><h1>Mehr</h1><p>${S.items.length} Einträge · ${docs().length} Dokumente</p></div>
+  <div class="h-sec"><h2>Meine Angaben</h2></div><div class="card pad">
+    <p class="muted" style="margin:0;font-size:13.5px">Wird beim Ausfüllen automatisch bei Name, Klasse und Datum eingetragen.</p>
+    <div class="grid2"><label class="f">Name<input id="meName" value="${esc(S.me.name)}"></label><label class="f">Klasse<input id="meKlasse" value="${esc(S.me.klasse)}"></label></div></div>
   <div class="h-sec"><h2>KI-Tutor</h2>${AI.on ? `<span class="badge ok">aktiv</span>` : ""}</div><div class="card pad">
     ${SAMPLE ? `<p style="margin:0"><b>Läuft über Claude.</b> Hier in Claude ist nichts weiter nötig.</p><p class="muted" style="font-size:13.5px;margin:6px 0 0">Für die installierte App auf dem Homescreen brauchst du einmalig einen Schlüssel:</p>` : `<p style="margin:0">${S.gkey ? "<b>Die KI ist aktiv</b> (Google Gemini, kostenlos)." : "Für Erklärungen, Feedback und Quiz brauchst du einmalig einen <b>kostenlosen</b> Schlüssel von Google:"}</p>`}
     <ol class="muted" style="margin:10px 0 0;padding-left:20px;font-size:14px;line-height:1.7"><li><a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com/app/apikey</a> öffnen</li><li>Mit Google anmelden → <b>API-Schlüssel erstellen</b> → kopieren</li><li>Hier einfügen und speichern</li></ol>
@@ -1103,6 +1108,7 @@ async function fillDoc(it, onlyPid = null){
       const bmp = await bitmapFor(pid), G = grayOf(bmp);
       const r = await AI.json(`${docContext(it, 20000)}
 Das Bild zeigt Seite ${n + 1} von ${it.pages.length} dieses Dokuments (Berufsschule, Deutschland). Heute ist ${today()}.
+${personal()}
 Deine Aufgabe: Fülle diese Seite PERFEKT aus – so, wie ein sehr guter Schüler sie ausfüllen würde.
 1. Finde JEDES Antwortfeld auf dieser Seite: Lücken (___ oder …), leere Schreiblinien, leere Kästen, leere Tabellenzellen, freien Platz direkt unter/neben einer Frage, Ankreuzkästchen.
 2. Schreib in jedes Feld die fachlich korrekte, vollständige Antwort – in der Länge, die zum Platz passt (Lücke: 1–3 Wörter; Linien: so viel Text, wie auf die Linien passt; Rechenaufgaben: kurzer Rechenweg + Ergebnis mit Einheit). Bei Ankreuzfeldern NUR die richtigen Kästchen mit Text "X" angeben.
@@ -1136,7 +1142,7 @@ ${list}
 Prüfe streng wie ein Lehrer:
 1. Ist jede Antwort fachlich richtig, vollständig und passt sie zur Aufgabe, neben der sie steht?
 2. Steht jede Antwort im richtigen Antwortbereich – nicht über gedrucktem Text, nicht bei der falschen Aufgabe, nicht außerhalb der Linie/des Kästchens?
-3. Fehlt ein Antwortfeld?
+3. Fehlt ein Antwortfeld – auch Name/Klasse/Datum? ${personal()}
 Antworte NUR mit JSON: {"korrekturen":[{"id":"Feld-ID","text":"korrigierte Antwort – nur wenn falsch/unvollständig","box_2d":[ymin,xmin,ymax,xmax] – nur wenn falsch platziert, 0–1000}],"loeschen":["Feld-IDs, die nicht hingehören"],"neu":[{"aufgabe":"Nr.","art":"luecke|linie|feld|tabelle|kreuz","box_2d":[ymin,xmin,ymax,xmax],"text":"..."}]}
 Ist alles perfekt: {"korrekturen":[],"loeschen":[],"neu":[]}`, {images:[blob], tier:"complex"});
   if (!r || typeof r !== "object") return;
@@ -1730,6 +1736,7 @@ document.addEventListener("input", e => {
   if (["subjectId","kind","due","examDate","topicId"].includes(f)) renderDetail();
 });
 document.addEventListener("change", e => {
+  if (e.target.id === "meName" || e.target.id === "meKlasse"){ S.me = {name:$("#meName").value.trim() || "Lukas St.", klasse:$("#meKlasse").value.trim()}; setMeta("me", S.me); toast("Gespeichert"); return; }
   if (e.target.id === "imSub"){ const s = subj(e.target.value), w = $("#imTopicWrap"); w.hidden = !topicsOf(s).length; $("#imTopic").innerHTML = topicOptions(s, ""); }
 });
 document.addEventListener("keydown", e => {
@@ -1762,6 +1769,7 @@ async function init(){
     S.timetable = (await getMeta("timetable")) || [];
     S.lastBackup = (await getMeta("lastBackup")) || 0;
     const prefs = await getMeta("prefs"); if (prefs){ S.lastMode = prefs.lastMode; S.autoAi = prefs.autoAi; S.autoFill = prefs.autoFill; }
+    S.me = (await getMeta("me")) || S.me;
     S.gkey = (await getMeta("gkey")) || ""; S.gmodel = (await getMeta("gmodel")) || ""; S.hideInstall = !!(await getMeta("hideInstall"));
     if (!(await getMeta("seeded"))){ seed(); for (const s of S.subjects) await store.put("subjects", s); await saveTT(); await setMeta("seeded", 1); }
   } catch (e){ console.error(e); if (!S.subjects.length) seed(); }
