@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Schul-Gehirn</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Caveat:wght@600&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#f6f6f3;--surface:#fff;--surface2:#f1f1ec;--surface3:#e9e8e2;--border:#e5e4dd;--border2:#d6d5cd;
@@ -247,6 +247,22 @@ label.f>input,label.f>select,label.f>textarea{margin-top:6px}
 details.x{margin-top:12px}
 details.x summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--muted);padding:6px 2px;list-style:none;display:flex;align-items:center;gap:6px}
 details.x summary::-webkit-details-marker{display:none}
+.fillbar{margin-top:14px}
+.fillhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fillhead .seg{flex:0 0 auto}
+.fillacts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.fillacts .btn{min-width:0;padding:0 8px;gap:6px}
+.fillacts .btn:not(:first-child){height:38px;font-size:13.5px}
+.fillacts .btn:first-child{grid-column:1/-1}
+@media (min-width:700px){.fillacts{grid-template-columns:2fr 1fr 1fr 1fr}.fillacts .btn:first-child{grid-column:auto}}
+.fbx[style*="width:2"],.fbx[style*="width:3"]{}
+.fillwrap{position:relative;line-height:0}
+.fillcv{width:100%;height:auto;display:block;background:var(--surface2);cursor:zoom-in}
+.fillwrap.editing .fillcv{cursor:crosshair}
+.fbx{position:absolute;border:2px dashed var(--accent);border-radius:5px;background:color-mix(in srgb,var(--accent) 7%,transparent);touch-action:none;cursor:move}
+.fbx .fh{position:absolute;right:-10px;bottom:-10px;width:20px;height:20px;border-radius:50%;background:var(--accent);border:2px solid #fff;cursor:nwse-resize;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.tools{grid-template-columns:repeat(5,1fr)!important}
+@media (max-width:520px){.tools{grid-template-columns:repeat(3,1fr)!important}}
 .transcript{white-space:pre-wrap;font-size:13.5px;line-height:1.55;padding:14px;max-height:420px;overflow:auto;margin-top:6px}
 
 /* ---------- Modal / Toast ---------- */
@@ -464,8 +480,8 @@ const AI = {
   get on(){ return !!SAMPLE || !!S.gkey; },
   get vision(){ return !!(SAMPLE && IMG) || (!SAMPLE && !!S.gkey); },
   get maxImgs(){ return SAMPLE && IMG ? Math.min(IMG.maxCount || 5, 8) : 8; },
-  async json(prompt, {images} = {}){
-    if (SAMPLE) return SAMPLE.json(prompt, images && images.length ? {images} : {});
+  async json(prompt, {images, tier} = {}){
+    if (SAMPLE){ const o = {}; if (images && images.length) o.images = images; if (tier) o.modelTier = tier; return SAMPLE.json(prompt, o); }
     return parseLooseJSON(await gemini([{role:"user", content:prompt}], {images, json:true}));
   },
   async text(input, {images, onText, signal} = {}){
@@ -604,7 +620,7 @@ function docRow(it){
   const s = subj(it.subjectId), k = KIND[it.kind] || KIND.blatt, p = qProg(it);
   const tp = topicsOf(s).find(t => t.id === it.topicId);
   const right = p.n ? `<div style="width:56px;text-align:right"><div style="font-size:12px;font-weight:700">${p.pct}%</div><div class="progress" style="margin-top:4px"><i style="width:${p.pct}%"></i></div></div>`
-    : it.summary ? `<span class="badge acc">${ic("sparkle", 13)}analysiert</span>` : "";
+    : hasFills(it) ? `<span class="badge ok">${ic("edit", 13)}ausgefüllt</span>` : it.summary ? `<span class="badge acc">${ic("sparkle", 13)}analysiert</span>` : "";
   return `<button class="row" data-act="open" data-id="${it.id}"><div class="thumb">${it.thumb ? `<img src="${it.thumb}" alt="" loading="lazy">` : ic(k.ic, 20)}</div>
     <div class="main"><div class="t">${esc(it.title || k.l)}</div><div class="s">${sb(s)}${it.kind !== "blatt" ? `<span>${k.l}</span>·` : ""}${tp ? `<span>${esc(tp.name)}</span>·` : ""}<span>${(it.pages || []).length} S.</span>·<span>${fmtDate(it.created)}</span>${it.examDate && daysUntil(it.examDate) >= 0 ? `<span class="badge warn">${ic("calendar", 12)} ${fmtDue(it.examDate)}</span>` : ""}</div></div>${right}</button>`;
 }
@@ -851,7 +867,7 @@ function renderDetail(){
     h += `<div class="seg" style="margin-top:18px"><button class="${S.dtab === "learn" ? "on" : ""}" data-act="dtab" data-t="learn">${ic("cap", 16)}Lernen</button><button class="${S.dtab === "pages" ? "on" : ""}" data-act="dtab" data-t="pages">${ic("file", 16)}Seiten · ${(it.pages || []).length}</button><button class="${S.dtab === "notes" ? "on" : ""}" data-act="dtab" data-t="notes">${ic("note", 16)}Notizen</button></div>`;
     if (S.dtab === "learn") h += learnTab(it);
     if (S.dtab === "pages"){
-      h += (it.pages || []).map((p, i) => `<div class="pg"><img data-pid="${p}" data-act="zoom" alt="Seite ${i + 1}"><div class="bar"><span style="padding:0 6px">Seite ${i + 1} von ${it.pages.length}</span><span class="sp"></span><button class="btn sm ghost" data-act="rot" data-i="${i}">${ic("rotate", 16)}Drehen</button><button class="btn sm ghost" data-act="savepage" data-i="${i}" aria-label="Speichern">${ic("download", 16)}</button><button class="btn sm ghost danger" data-act="delpage" data-i="${i}" aria-label="Seite löschen">${ic("x", 16)}</button></div></div>`).join("");
+      h += fillBar(it) + (it.pages || []).map((p, i) => pageHtml(it, p, i)).join("");
       h += `<div class="grid2" style="margin-top:12px"><button class="btn" data-act="addCam">${ic("camera", 18)}Seite scannen</button><button class="btn" data-act="addFile">${ic("upload", 18)}Seite hochladen</button></div>`;
     }
     if (S.dtab === "notes") h += `<label class="f">Eigene Notizen<textarea data-f="text" style="min-height:40vh" placeholder="Was hat der Lehrer gesagt, was ist wichtig…">${esc(it.text)}</textarea></label><label class="f">Stichwörter (mit Komma)<input data-f="tags" value="${esc((it.tags || []).join(", "))}" placeholder="z. B. Klausur, Kaufvertrag"></label>`;
@@ -859,6 +875,7 @@ function renderDetail(){
   h += `<p class="faint" style="font-size:12.5px;margin-top:22px">Erstellt ${new Date(it.created).toLocaleString("de-DE", {dateStyle:"medium", timeStyle:"short"})}</p></main>`;
   $("#detail").innerHTML = h; $("#detail").scrollTop = keepScroll;
   $$("#detail img[data-pid]").forEach(async img => { img.src = await urlFor(img.dataset.pid); });
+  if (it.type === "sheet" && S.dtab === "pages") drawCanvases(it);
 }
 
 function learnTab(it){
@@ -873,7 +890,7 @@ function learnTab(it){
   h += `<div class="card sum"><h4>Worum geht's</h4><p>${esc(it.summary)}</p>`;
   if (it.terms?.length) h += `<details class="x"><summary>${ic("chev", 16)}Wichtige Begriffe (${it.terms.length})</summary><div class="terms">${it.terms.map(t => `<div class="term"><b>${esc(t.begriff)}</b>${esc(t.erklaerung)}</div>`).join("")}</div></details>`;
   h += `</div>`;
-  const tools = [["explain","bulb","Erklär's mir"],["quiz","quiz","Quiz"],["sheet","list","Lernzettel"],["chat","chat","Tutor"]];
+  const tools = [["fill","edit","Ausfüllen"],["explain","bulb","Erklär's mir"],["quiz","quiz","Quiz"],["sheet","list","Lernzettel"],["chat","chat","Tutor"]];
   h += `<div class="tools">${tools.map(([k, i, l]) => `<button class="${S.tool === k ? "on" : ""}" data-act="tool" data-t="${k}">${ic(i, 22)}${l}</button>`).join("")}</div>`;
   if (S.tool === "explain") h += `<div class="card toolpanel"><div class="ai-out" id="live-ex-${it.id}">${liveOrSaved("ex-" + it.id, it.explain)}</div>${it.explain && S.live["ex-" + it.id] === undefined ? `<button class="btn sm ghost" style="margin-top:8px" data-act="reExplain">${ic("refresh", 15)}Anders erklären</button>` : ""}</div>`;
   if (S.tool === "quiz") h += quizPanel(it);
@@ -929,6 +946,299 @@ function docChatPanel(it){
   h += c.map((m, i) => m.role === "user" ? `<div class="msg u">${esc(m.content)}</div>` : `<div class="msg a ai-out" ${i === c.length - 1 ? `id="live-dc-${it.id}"` : ""}>${i === c.length - 1 && S.live["dc-" + it.id] !== undefined ? liveOrSaved("dc-" + it.id) : md(m.content)}</div>`).join("");
   h += `</div><div class="composer"><textarea id="dcIn" rows="1" placeholder="Frag was zu diesem Dokument…"></textarea><button class="btn primary" data-act="dcSend" aria-label="Senden">${ic("send", 20)}</button></div>${c.length ? `<button class="btn sm ghost" style="margin-top:8px" data-act="dcClear">${ic("refresh", 15)}Chat leeren</button>` : ""}</div>`;
   return h;
+}
+
+/* ---------- Blatt ausfüllen (Lösungen direkt aufs Blatt) ---------- */
+const INK = "#1d3fbf";
+let fontReady = null;
+function ensureHandFont(){ if (!fontReady) fontReady = (document.fonts ? Promise.all([document.fonts.load('600 40px "Caveat"'), document.fonts.load("500 40px Inter")]) : Promise.resolve()).catch(() => {}); return fontReady; }
+let jspdfReady = null;
+function ensureJsPdf(){ if (!jspdfReady) jspdfReady = loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js").catch(e => { jspdfReady = null; throw e; }); return jspdfReady; }
+const bmpCache = new Map();
+async function bitmapFor(pid){ if (bmpCache.has(pid)) return bmpCache.get(pid); const b = await getBlob(pid); const bmp = await createImageBitmap(b); bmpCache.set(pid, bmp); return bmp; }
+function dropBitmap(pid){ const b = bmpCache.get(pid); if (b){ b.close?.(); bmpCache.delete(pid); } }
+const hasFills = it => !!it.fills && Object.values(it.fills).some(F => F?.fields?.length);
+const mctx = document.createElement("canvas").getContext("2d");
+const fontOf = (style, px) => style === "print" ? `500 ${px}px Inter, Arial, sans-serif` : `600 ${px}px Caveat, "Segoe Print", cursive`;
+function wrapText(text, maxW, font){
+  mctx.font = font; const out = [];
+  for (const para of String(text || "").split("\n")){
+    let line = "";
+    for (let w of para.split(/\s+/).filter(Boolean)){
+      while (mctx.measureText(w).width > maxW && w.length > 1){ // sehr lange Wörter trennen
+        let k = w.length - 1; while (k > 1 && mctx.measureText(w.slice(0, k) + "-").width > maxW) k--;
+        if (line){ out.push(line); line = ""; } out.push(w.slice(0, k) + "-"); w = w.slice(k);
+      }
+      const t = line ? line + " " + w : w;
+      if (mctx.measureText(t).width <= maxW || !line) line = t; else { out.push(line); line = w; }
+    }
+    out.push(line);
+  }
+  return out;
+}
+function fieldLayout(f, W, H, style){
+  const bx = f.x * W, by = f.y * H, bh = Math.max(10, f.h * H), sc = style === "print" ? .8 : 1, lh = 1.15, minPx = H * .014;
+  let bw = Math.max(10, f.w * W);
+  if (f.kind === "kreuz"){ const px = Math.min(bw, bh) * 1.15; return {px, font:fontOf(style, px), center:true, lines:[{t:"X", x:bx + bw / 2, y:by + bh / 2 + px * .33}]}; }
+  let px, lines;
+  if (f.rules && f.rules.length){
+    const sp = (f.spacing || f.h / f.rules.length) * H;
+    px = f.px ? f.px * W : Math.min(sp * .9, H * .034) * sc;
+    const floor = f.rules.length === 1 ? Math.max(minPx, sp * .7 * sc) : minPx;
+    for (let k = 0; k < 60; k++){ lines = wrapText(f.text, bw, fontOf(style, px)); if (f.px || lines.length <= f.rules.length || px < floor) break; px *= .93; }
+    if (!f.px && lines.length > f.rules.length && f.rules.length === 1){ // kurze Lücke: lieber nach rechts verlängern als winzig schreiben
+      mctx.font = fontOf(style, px); const need = mctx.measureText(String(f.text).replace(/\s+/g, " ")).width + px * .3;
+      bw = Math.max(bw, Math.min(need, W * .96 - bx)); lines = wrapText(f.text, bw, fontOf(style, px));
+    }
+    const last = f.rules[f.rules.length - 1] * H;
+    return {px, font:fontOf(style, px), lines: lines.map((t, i) => ({t, x:bx + px * .15, y:(i < f.rules.length ? f.rules[i] * H : last + (i - f.rules.length + 1) * sp) - px * .14}))};
+  }
+  px = f.px ? f.px * W : Math.min(f.kind === "luecke" ? bh * .95 : H * .027, bh * .95) * sc;
+  for (let k = 0; k < 60; k++){ lines = wrapText(f.text, bw - px * .2, fontOf(style, px)); if (f.px || lines.length * px * lh <= bh * 1.02 || px < minPx) break; px *= .93; }
+  const total = lines.length * px * lh;
+  const top = f.kind === "luecke" || f.kind === "linie" ? by + bh - total : f.kind === "tabelle" ? by + Math.max(0, (bh - total) / 2) : by + Math.min(px * .15, Math.max(0, bh - total));
+  return {px, font:fontOf(style, px), lines: lines.map((t, i) => ({t, x:bx + px * .15, y:top + px * lh * i + px * .9}))};
+}
+function renderFilled(bmp, F, style, labels, target){
+  const W = bmp.width, H = bmp.height, c = target || document.createElement("canvas");
+  if (c.width !== W) c.width = W; if (c.height !== H) c.height = H;
+  const ctx = c.getContext("2d"); ctx.clearRect(0, 0, W, H); ctx.drawImage(bmp, 0, 0);
+  for (const f of (F?.fields || [])){
+    if (!f.text) continue;
+    const L = fieldLayout(f, W, H, style);
+    ctx.font = L.font; ctx.fillStyle = INK; ctx.textBaseline = "alphabetic"; ctx.textAlign = L.center ? "center" : "left";
+    for (const l of L.lines) ctx.fillText(l.t, l.x, l.y);
+    if (labels){
+      const s = Math.max(14, H * .013); ctx.font = `700 ${s}px Inter, sans-serif`; ctx.textAlign = "left";
+      const tx = f.x * W, ty = f.y * H, tw = ctx.measureText(f.id).width + s * .6;
+      ctx.fillStyle = "#e11d48"; ctx.fillRect(tx - tw - 2, ty - 2, tw, s * 1.3); ctx.fillStyle = "#fff"; ctx.fillText(f.id, tx - tw - 2 + s * .3, ty + s * .95);
+      ctx.strokeStyle = "rgba(225,29,72,.55)"; ctx.lineWidth = Math.max(1.5, H * .0012); ctx.strokeRect(f.x * W, f.y * H, f.w * W, f.h * H);
+    }
+  }
+  return c;
+}
+function grayOf(bmp){
+  const s = Math.min(1, 1400 / bmp.width), w = Math.round(bmp.width * s), h = Math.round(bmp.height * s);
+  const c = document.createElement("canvas"); c.width = w; c.height = h; const ctx = c.getContext("2d", {willReadFrequently:true}); ctx.drawImage(bmp, 0, 0, w, h);
+  const d = ctx.getImageData(0, 0, w, h).data, g = new Uint8Array(w * h);
+  for (let i = 0, j = 0; j < g.length; i += 4, j++) g[j] = (d[i] * .299 + d[i + 1] * .587 + d[i + 2] * .114) | 0;
+  return {g, w, h};
+}
+/* Box an echte Linien / Kästen auf dem Blatt anpassen */
+function snapField(f, G){
+  const {g, w:gw, h:gh} = G, cl = (v, a, b) => Math.max(a, Math.min(b, v));
+  let X0 = cl(Math.round(f.x * gw), 0, gw - 2), X1 = cl(Math.round((f.x + f.w) * gw), X0 + 1, gw - 1), Y0 = cl(Math.round(f.y * gh), 0, gh - 2), Y1 = cl(Math.round((f.y + f.h) * gh), Y0 + 1, gh - 1);
+  const dark = (x, y) => g[y * gw + x] < 145;
+  const rowFrac = (y, a, b) => { let n = 0; for (let x = a; x < b; x++) if (dark(x, y)) n++; return n / Math.max(1, b - a); };
+  const colFrac = (x, a, b) => { let n = 0; for (let y = a; y < b; y++) if (dark(x, y)) n++; return n / Math.max(1, b - a); };
+  const bh = Y1 - Y0, bw = X1 - X0;
+  if (f.kind === "linie" || f.kind === "luecke"){
+    const s = cl(Y0 - Math.round(bh * .5), 0, gh - 1), e = cl(Y1 + Math.round(Math.max(bh * .7, gh * .014)), 0, gh - 1);
+    const groups = [];
+    for (let y = s; y <= e; y++){ if (rowFrac(y, X0, X1) >= .5){ const l = groups[groups.length - 1]; if (l && y - l.e <= 2) l.e = y; else groups.push({s:y, e:y}); } }
+    let rules = groups.filter(l => l.e - l.s <= Math.max(3, gh * .006)).map(l => l.s);
+    if (rules.length){
+      if (f.kind === "luecke") rules = [rules.reduce((a, b) => Math.abs(b - Y1) < Math.abs(a - Y1) ? b : a)];
+      else { const inside = rules.filter(y => y >= Y0 + bh * .15 && y <= Y1 + bh * .6); rules = inside.length ? inside : [rules.reduce((a, b) => Math.abs(b - Y1) < Math.abs(a - Y1) ? b : a)]; }
+      // waagrechte Ausdehnung der (ersten) Linie bestimmen
+      const y = rules[0], a0 = cl(X0 - Math.round(bw * .25), 0, gw - 1), b0 = cl(X1 + Math.round(bw * .25), 0, gw - 1);
+      let best = null, cur = null, gap = 0;
+      for (let x = a0; x <= b0; x++){
+        const dk = dark(x, y) || (y > 0 && dark(x, y - 1)) || (y < gh - 1 && dark(x, y + 1));
+        if (dk){ if (!cur) cur = {a:x, b:x}; cur.b = x; gap = 0; } else if (cur && ++gap > 4){ if (!best || cur.b - cur.a > best.b - best.a) best = cur; cur = null; gap = 0; }
+      }
+      if (cur && (!best || cur.b - cur.a > best.b - best.a)) best = cur;
+      if (best && best.b - best.a >= bw * .4){ X0 = best.a; X1 = best.b; }
+      const sp = rules.length > 1 ? (rules[rules.length - 1] - rules[0]) / (rules.length - 1) : Math.max(Math.min(bh, gh * .045), gh * .026);
+      const top = Math.max(0, rules[0] - sp * .92);
+      Object.assign(f, {x:X0 / gw, w:(X1 - X0) / gw, y:top / gh, h:(rules[rules.length - 1] - top) / gh, rules:rules.map(r => r / gh), spacing:sp / gh});
+      return f;
+    }
+    f.rules = null; return f;
+  }
+  if (f.kind === "feld" || f.kind === "tabelle"){
+    let t = Y0, b = Y1, l = X0, r = X1;
+    const mh = bh * .18, mw = bw * .18;
+    for (let k = 0; k < mh && t < b - 2; k++){ if (rowFrac(t, l, r) > .45) t += 1; else if (rowFrac(t + 1, l, r) > .45) t += 2; else break; }
+    for (let k = 0; k < mh && b > t + 2; k++){ if (rowFrac(b, l, r) > .45) b -= 1; else if (rowFrac(b - 1, l, r) > .45) b -= 2; else break; }
+    for (let k = 0; k < mw && l < r - 2; k++){ if (colFrac(l, t, b) > .45) l += 1; else if (colFrac(l + 1, t, b) > .45) l += 2; else break; }
+    for (let k = 0; k < mw && r > l + 2; k++){ if (colFrac(r, t, b) > .45) r -= 1; else if (colFrac(r - 1, t, b) > .45) r -= 2; else break; }
+    // größten freien Bereich nehmen, damit kein gedruckter Text überschrieben wird
+    let run = null, cur = null;
+    for (let y = t; y <= b; y++){ if (rowFrac(y, l, r) < .012){ if (!cur) cur = {a:y, b:y}; cur.b = y; } else { if (cur && (!run || cur.b - cur.a > run.b - run.a)) run = cur; cur = null; } }
+    if (cur && (!run || cur.b - cur.a > run.b - run.a)) run = cur;
+    if (run && run.b - run.a >= (b - t) * .35 && run.b - run.a < (b - t) * .97){ t = run.a; b = run.b; }
+    const ix = (r - l) * .02, iy = (b - t) * .04;
+    Object.assign(f, {x:(l + ix) / gw, w:(r - l - 2 * ix) / gw, y:(t + iy) / gh, h:(b - t - 2 * iy) / gh});
+  }
+  return f;
+}
+function parseFields(arr, startId = 1){
+  const out = []; let n = startId;
+  for (const raw of Array.isArray(arr) ? arr : []){
+    let b = raw?.box_2d || raw?.box; if (!Array.isArray(b) || b.length !== 4 || !raw.text) continue;
+    b = b.map(Number); if (b.some(v => !Number.isFinite(v))) continue;
+    const k = Math.max(...b) <= 1.5 ? 1 : 1000;
+    let [y0, x0, y1, x1] = b.map(v => Math.max(0, Math.min(1, v / k)));
+    if (y1 < y0) [y0, y1] = [y1, y0]; if (x1 < x0) [x0, x1] = [x1, x0];
+    if (y1 - y0 < .004 || x1 - x0 < .006) continue;
+    const kind = ["luecke","linie","feld","tabelle","kreuz"].includes(String(raw.art || raw.kind)) ? String(raw.art || raw.kind) : "feld";
+    out.push({id:String(n++), x:x0, y:y0, w:x1 - x0, h:y1 - y0, kind, text:String(raw.text).trim(), q:String(raw.aufgabe || "")});
+  }
+  return out;
+}
+function setFillStatus(key, txt){ S.live[key] = txt; const el = document.getElementById("fillstat"); if (el) el.innerHTML = thinking(esc(txt)); }
+async function fillDoc(it, onlyPid = null){
+  if (!AI.vision){ toast("Dafür muss zuerst die KI eingerichtet sein (Mehr → KI-Tutor)"); return; }
+  const key = "fill-" + it.id; if (S.live[key] !== undefined) return;
+  S.dtab = "pages"; S.fillEdit = false; it.fillOn = true; it.fills = it.fills || {};
+  setFillStatus(key, "Starte…"); refresh();
+  await ensureHandFont();
+  const pages = onlyPid ? [onlyPid] : [...it.pages]; let total = 0;
+  try {
+    for (let n = 0; n < pages.length; n++){
+      const pid = pages[n], lbl = pages.length > 1 ? `Seite ${n + 1}/${pages.length}: ` : "";
+      setFillStatus(key, lbl + "Antwortfelder finden & lösen…");
+      const blob = await getBlob(pid); if (!blob) continue;
+      const bmp = await bitmapFor(pid), G = grayOf(bmp);
+      const r = await AI.json(`${docContext(it, 20000)}
+Das Bild zeigt Seite ${n + 1} von ${it.pages.length} dieses Dokuments (Berufsschule, Deutschland). Heute ist ${today()}.
+Deine Aufgabe: Fülle diese Seite PERFEKT aus – so, wie ein sehr guter Schüler sie ausfüllen würde.
+1. Finde JEDES Antwortfeld auf dieser Seite: Lücken (___ oder …), leere Schreiblinien, leere Kästen, leere Tabellenzellen, freien Platz direkt unter/neben einer Frage, Ankreuzkästchen.
+2. Schreib in jedes Feld die fachlich korrekte, vollständige Antwort – in der Länge, die zum Platz passt (Lücke: 1–3 Wörter; Linien: so viel Text, wie auf die Linien passt; Rechenaufgaben: kurzer Rechenweg + Ergebnis mit Einheit). Bei Ankreuzfeldern NUR die richtigen Kästchen mit Text "X" angeben.
+3. Gib die Position als box_2d = [ymin, xmin, ymax, xmax], normiert auf 0–1000 relativ zur Bildgröße. Die Box umschließt NUR den freien Schreibbereich: bei Linien den Bereich über der/den Linie(n) (Unterkante = unterste Linie), bei Kästen/Zellen das Innere. Niemals gedruckten Text überdecken.
+4. Mehrere Linien untereinander zur selben Aufgabe = EIN Feld (art "linie"), das alle Linien umfasst.
+Antworte NUR mit JSON: {"felder":[{"aufgabe":"Nr.","art":"luecke|linie|feld|tabelle|kreuz","box_2d":[ymin,xmin,ymax,xmax],"text":"Antwort"}]}
+Wenn die Seite keine Antwortfelder hat: {"felder":[]}`, {images:[blob], tier:"complex"});
+      let fields = parseFields(r?.felder).map(f => snapField(f, G));
+      it.fills[pid] = {fields, style:it.fillStyle || "hand"};
+      refresh();
+      if (fields.length){
+        setFillStatus(key, lbl + "Selbstkontrolle wie ein Lehrer…");
+        try { await selfCheck(it, pid, bmp, G); } catch (e){ console.warn("check", e); }
+      }
+      total += it.fills[pid].fields.length;
+      await saveItem(it); refresh();
+    }
+    toast(total ? `${total} Antworten eingetragen` : "Keine Antwortfelder gefunden");
+  } catch (e){ const m = aiErr(e); if (m) toast(m); }
+  delete S.live[key]; await saveItem(it); refresh();
+}
+async function selfCheck(it, pid, bmp, G){
+  const F = it.fills[pid]; await ensureHandFont();
+  const blob = await canvasBlob(renderFilled(bmp, F, it.fillStyle, true), .85);
+  const list = F.fields.map(f => `#${f.id} (${f.kind}${f.q ? ", Aufgabe " + f.q : ""}): ${f.text}`).join("\n");
+  const r = await AI.json(`${docContext(it, 12000)}
+Das Bild zeigt eine Seite dieses Dokuments, die bereits AUSGEFÜLLT wurde: blaue Schrift = eingetragene Antworten, rote Nummern + rote Rahmen = Feld-IDs und Feldgrenzen.
+Eingetragene Felder:
+${list}
+
+Prüfe streng wie ein Lehrer:
+1. Ist jede Antwort fachlich richtig, vollständig und passt sie zur Aufgabe, neben der sie steht?
+2. Steht jede Antwort im richtigen Antwortbereich – nicht über gedrucktem Text, nicht bei der falschen Aufgabe, nicht außerhalb der Linie/des Kästchens?
+3. Fehlt ein Antwortfeld?
+Antworte NUR mit JSON: {"korrekturen":[{"id":"Feld-ID","text":"korrigierte Antwort – nur wenn falsch/unvollständig","box_2d":[ymin,xmin,ymax,xmax] – nur wenn falsch platziert, 0–1000}],"loeschen":["Feld-IDs, die nicht hingehören"],"neu":[{"aufgabe":"Nr.","art":"luecke|linie|feld|tabelle|kreuz","box_2d":[ymin,xmin,ymax,xmax],"text":"..."}]}
+Ist alles perfekt: {"korrekturen":[],"loeschen":[],"neu":[]}`, {images:[blob], tier:"complex"});
+  if (!r || typeof r !== "object") return;
+  const del = new Set((r.loeschen || []).map(String));
+  F.fields = F.fields.filter(f => !del.has(f.id));
+  for (const k of r.korrekturen || []){
+    const f = F.fields.find(x => x.id === String(k.id)); if (!f) continue;
+    if (k.text && String(k.text).trim()) f.text = String(k.text).trim();
+    if (Array.isArray(k.box_2d)){ const [nf] = parseFields([{box_2d:k.box_2d, art:f.kind, text:f.text}]); if (nf){ Object.assign(f, {x:nf.x, y:nf.y, w:nf.w, h:nf.h, rules:null}); snapField(f, G); } }
+  }
+  const maxId = F.fields.reduce((a, f) => Math.max(a, +f.id || 0), 0);
+  F.fields.push(...parseFields(r.neu, maxId + 1).map(f => snapField(f, G)));
+}
+function fillBar(it){
+  const key = "fill-" + it.id, running = S.live[key] !== undefined, has = hasFills(it);
+  if (running) return `<div class="card pad fillbar"><div id="fillstat">${thinking(esc(S.live[key] || "Arbeite…"))}</div><p class="muted" style="font-size:13px;margin:6px 0 0">Ich erkenne die Antwortfelder, löse die Aufgaben, trage alles ein und kontrolliere es danach noch einmal.</p></div>`;
+  if (!has) return AI.vision ? `<div class="hero" style="margin-top:14px"><h3>Lösungen direkt aufs Blatt</h3><p class="muted" style="font-size:14px;margin:6px 0 14px">Ich trage die richtigen Antworten an der passenden Stelle ein, prüfe alles noch einmal wie ein Lehrer – und du speicherst das fertige Blatt als PDF.</p><div class="grid2"><button class="btn primary" data-act="fillGo">${ic("edit", 17)}Blatt ausfüllen</button><button class="btn" data-act="pdf">${ic("download", 17)}Als PDF</button></div></div>`
+    : `<div class="grid2" style="margin-top:14px"><button class="btn" data-act="go" data-v="more">${ic("key", 17)}KI für Ausfüllen einrichten</button><button class="btn" data-act="pdf">${ic("download", 17)}Als PDF</button></div>`;
+  const n = Object.values(it.fills).reduce((a, F) => a + (F?.fields?.length || 0), 0);
+  return `<div class="card pad fillbar"><div class="fillhead"><span class="badge ok">${ic("check", 13, 3)}${n} Antworten eingetragen</span><span class="sp"></span>
+    <div class="seg"><button class="${(it.fillStyle || "hand") === "hand" ? "on" : ""}" data-act="fillStyle" data-s="hand" style="font-family:Caveat,cursive;font-size:17px">Handschrift</button><button class="${it.fillStyle === "print" ? "on" : ""}" data-act="fillStyle" data-s="print">Druck</button></div></div>
+    <div class="fillacts"><button class="btn primary" data-act="pdf">${ic("download", 17)}Als PDF speichern</button>
+    <button class="btn ${S.fillEdit ? "soft" : ""}" data-act="fillEdit">${ic(S.fillEdit ? "check" : "edit", 17)}${S.fillEdit ? "Fertig" : "Bearbeiten"}</button>
+    <button class="btn" data-act="fillToggle">${ic("eye", 17)}${it.fillOn === false ? "Einblenden" : "Ausblenden"}</button>
+    <button class="btn" data-act="fillAgain">${ic("refresh", 17)}Neu</button></div>
+    ${S.fillEdit ? `<p class="muted" style="font-size:13px;margin:10px 0 0">Antwort antippen zum Ändern · ziehen zum Verschieben · runder Punkt = Größe · freie Stelle antippen = neues Feld</p>` : ""}</div>`;
+}
+function pageHtml(it, p, i){
+  const F = it.fills?.[p], show = it.fillOn !== false && F?.fields?.length;
+  const bar = `<div class="bar"><span style="padding:0 6px">Seite ${i + 1} von ${it.pages.length}</span><span class="sp"></span><button class="btn sm ghost" data-act="rot" data-i="${i}">${ic("rotate", 16)}Drehen</button><button class="btn sm ghost" data-act="savepage" data-i="${i}" aria-label="Seite als Bild speichern">${ic("download", 16)}</button><button class="btn sm ghost danger" data-act="delpage" data-i="${i}" aria-label="Seite löschen">${ic("x", 16)}</button></div>`;
+  if (!show) return `<div class="pg"><img data-pid="${p}" data-act="zoom" alt="Seite ${i + 1}">${bar}</div>`;
+  const boxes = S.fillEdit ? F.fields.map(f => `<div class="fbx" data-fid="${f.id}" style="left:${f.x * 100}%;top:${f.y * 100}%;width:${f.w * 100}%;height:${f.h * 100}%"><span class="fh"></span></div>`).join("") : "";
+  return `<div class="pg"><div class="fillwrap ${S.fillEdit ? "editing" : ""}" data-pid="${p}"><canvas class="fillcv" data-cv="${p}" ${S.fillEdit ? "" : 'data-act="zoomcv"'}></canvas>${boxes}</div>${bar}</div>`;
+}
+async function drawCanvases(it){
+  await ensureHandFont();
+  for (const cv of $$("#detail canvas[data-cv]")){ const pid = cv.dataset.cv; try { renderFilled(await bitmapFor(pid), it.fills?.[pid], it.fillStyle, false, cv); } catch (e){ console.warn(e); } }
+  if (S.fillEdit) bindFillEdit(it);
+}
+async function redrawPage(it, pid){ const cv = $(`#detail canvas[data-cv="${pid}"]`); if (cv){ await ensureHandFont(); renderFilled(await bitmapFor(pid), it.fills?.[pid], it.fillStyle, false, cv); } }
+function bindFillEdit(it){
+  for (const wrap of $$("#detail .fillwrap")){
+    if (wrap._bound) continue; wrap._bound = true;
+    const pid = wrap.dataset.pid;
+    wrap.addEventListener("click", e => {
+      if (e.target.closest(".fbx")) return; // freie Stelle → neues Feld
+      const R = wrap.getBoundingClientRect(), x = (e.clientX - R.left) / R.width, y = (e.clientY - R.top) / R.height, F = it.fills[pid];
+      const id = String(F.fields.reduce((a, f) => Math.max(a, +f.id || 0), 0) + 1);
+      const f = {id, kind:"feld", text:"", x:Math.min(.7, x), y:Math.max(0, y - .02), w:.28, h:.035}; F.fields.push(f);
+      fieldEditor(it, pid, f, true);
+    });
+    wrap.addEventListener("pointerdown", e => {
+      const box = e.target.closest(".fbx"), R = wrap.getBoundingClientRect();
+      if (!box) return;
+      e.preventDefault();
+      const f = it.fills[pid].fields.find(x => x.id === box.dataset.fid), resize = !!e.target.closest(".fh");
+      const sx = e.clientX, sy = e.clientY, o = {x:f.x, y:f.y, w:f.w, h:f.h}; let moved = false;
+      box.setPointerCapture(e.pointerId);
+      const mv = ev => {
+        const dx = (ev.clientX - sx) / R.width, dy = (ev.clientY - sy) / R.height;
+        if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) > 4) moved = true;
+        if (resize){ f.w = Math.max(.02, o.w + dx); f.h = Math.max(.012, o.h + dy); } else { f.x = Math.min(1 - f.w, Math.max(0, o.x + dx)); f.y = Math.min(1 - f.h, Math.max(0, o.y + dy)); }
+        box.style.left = f.x * 100 + "%"; box.style.top = f.y * 100 + "%"; box.style.width = f.w * 100 + "%"; box.style.height = f.h * 100 + "%";
+      };
+      const up = async () => {
+        box.removeEventListener("pointermove", mv); box.removeEventListener("pointerup", up); box.removeEventListener("pointercancel", up);
+        if (!moved){ Object.assign(f, o); fieldEditor(it, pid, f, false); return; }
+        if (f.rules){ const dy = f.y - o.y, s = resize ? f.h / o.h : 1; f.rules = f.rules.map(r => o.y + (r - o.y) * s + dy); f.spacing = (f.spacing || 0) * s; }
+        saveItemSoon(it); redrawPage(it, pid);
+      };
+      box.addEventListener("pointermove", mv); box.addEventListener("pointerup", up); box.addEventListener("pointercancel", up);
+    });
+  }
+}
+function fieldEditor(it, pid, f, isNew){
+  S._fe = {it, pid, f, isNew};
+  openModal(`<h3>${isNew ? "Neues Feld" : "Antwort bearbeiten"}</h3>
+    <textarea id="feText" style="margin-top:14px;min-height:110px;font-family:${(it.fillStyle || "hand") === "hand" ? "Caveat,cursive;font-size:22px" : "Inter"}" placeholder="Antwort…">${esc(f.text)}</textarea>
+    ${isNew ? "" : `<label class="f">Schriftgröße</label><div class="seg" style="margin-top:6px"><button data-act="feSize" data-d="-1">A−</button><button data-act="feSize" data-d="0">Auto</button><button data-act="feSize" data-d="1">A+</button></div>`}
+    <div class="mact"><button class="btn ghost danger" data-act="feDel">${ic("trash", 16)}Löschen</button><button class="btn primary" data-act="feSave">Übernehmen</button></div>`,
+    () => { const wasNew = S._fe?.isNew; if (wasNew && !S._fe.f.text) it.fills[pid].fields = it.fills[pid].fields.filter(x => x !== f); S._fe = null; if (wasNew) renderDetail(); });
+  setTimeout(() => $("#feText")?.focus(), 60);
+}
+async function exportPdf(it){
+  busy("PDF wird erstellt…");
+  try {
+    await Promise.all([ensureJsPdf(), ensureHandFont()]);
+    const {jsPDF} = window.jspdf; let pdf = null;
+    for (let i = 0; i < it.pages.length; i++){
+      busy(`PDF wird erstellt… Seite ${i + 1}/${it.pages.length}`);
+      const pid = it.pages[i], bmp = await bitmapFor(pid), F = it.fillOn === false ? null : it.fills?.[pid];
+      const c = renderFilled(bmp, F, it.fillStyle, false);
+      const land = c.width > c.height, pw = land ? 297 : 210, ph = land ? 210 : 297;
+      if (!pdf) pdf = new jsPDF({orientation: land ? "landscape" : "portrait", unit:"mm", format:"a4", compress:true}); else pdf.addPage("a4", land ? "landscape" : "portrait");
+      const r = Math.min(pw / c.width, ph / c.height), w = c.width * r, h = c.height * r;
+      pdf.addImage(c.toDataURL("image/jpeg", .9), "JPEG", (pw - w) / 2, (ph - h) / 2, w, h, undefined, "FAST");
+    }
+    pdf.setProperties({title: it.title || "Blatt"});
+    const blob = pdf.output("blob"); unbusy();
+    const name = (it.title || "Blatt").replace(/[\\/:*?"<>|]+/g, "").trim().slice(0, 80) + (hasFills(it) && it.fillOn !== false ? " – ausgefüllt" : "") + ".pdf";
+    if (await saveFile(name, blob)) toast("PDF gespeichert");
+  } catch (e){ console.error(e); unbusy(); toast("PDF konnte nicht erstellt werden"); }
 }
 
 /* ---------- Image processing ---------- */
@@ -1008,9 +1318,10 @@ function startImport(files){
     ${onlyPdf ? "" : `<label class="f">Bild</label><div class="seg" style="margin-top:6px" id="modeSeg"><button data-act="mode" data-m="scan" class="${S.mode === "scan" ? "on" : ""}">Scan (klar, ohne Schatten)</button><button data-act="mode" data-m="color" class="${S.mode === "color" ? "on" : ""}">Original</button></div>`}
     ${files.length > 1 ? `<label class="chk"><input type="checkbox" id="imSep"> Jede Datei als eigenes Dokument</label>` : ""}
     ${AI.vision || AI.on ? `<label class="chk"><input type="checkbox" id="imAi" ${S.autoAi !== false ? "checked" : ""}> Direkt mit KI analysieren</label>` : ""}
+    ${AI.vision ? `<label class="chk"><input type="checkbox" id="imFill" ${S.autoFill ? "checked" : ""}> Lösungen direkt aufs Blatt schreiben</label>` : ""}
     <div class="mact"><button class="btn" data-act="mclose">Abbrechen</button><button class="btn primary" data-act="imGo">Speichern</button></div>`);
 }
-async function doImport(files, {title = "", subjectId = "inbox", topicId = "", kind = "blatt", mode = "scan", sep = false, targetId = null, ai = false}){
+async function doImport(files, {title = "", subjectId = "inbox", topicId = "", kind = "blatt", mode = "scan", sep = false, targetId = null, ai = false, fill = false}){
   const groups = sep ? files.map(f => [f]) : [files]; let failed = 0, cut = false; const made = [];
   busy("Wird verarbeitet…");
   try {
@@ -1038,7 +1349,7 @@ async function doImport(files, {title = "", subjectId = "inbox", topicId = "", k
   } finally { unbusy(); }
   toast(failed ? failed + " Datei(en) konnten nicht gelesen werden" : cut ? "Nur die ersten 60 PDF-Seiten übernommen" : targetId ? "Seite hinzugefügt" : "Abgelegt");
   render();
-  if (made.length === 1){ openItem(made[0].id); if (ai) aiAnalyze(made[0]); }
+  if (made.length === 1){ const it = made[0]; openItem(it.id); (async () => { if (ai) await aiAnalyze(it); if (fill) await fillDoc(it); })(); }
   else if (made.length && ai){ for (const g of made) await aiAnalyze(g, true); }
 }
 
@@ -1315,13 +1626,13 @@ const A = {
   zIn: () => { const i = $(".zoomwrap img"); i.style.width = i.style.width === "220%" ? "100%" : "220%"; },
   rot: async el => {
     const it = item(S.openId), i = +el.dataset.i, id = it.pages[i]; busy("Drehe…");
-    try { const bmp = await createImageBitmap(await getBlob(id)), c = document.createElement("canvas"); c.width = bmp.height; c.height = bmp.width; const ctx = c.getContext("2d"); ctx.translate(c.width, 0); ctx.rotate(Math.PI / 2); ctx.drawImage(bmp, 0, 0); await store.put("blobs", {id, blob: await canvasBlob(c)}); dropUrl(id); if (i === 0) it.thumb = makeThumb(c); await saveItem(it); } catch { toast("Drehen fehlgeschlagen"); }
+    try { const bmp = await createImageBitmap(await getBlob(id)), c = document.createElement("canvas"); c.width = bmp.height; c.height = bmp.width; const ctx = c.getContext("2d"); ctx.translate(c.width, 0); ctx.rotate(Math.PI / 2); ctx.drawImage(bmp, 0, 0); await store.put("blobs", {id, blob: await canvasBlob(c)}); dropUrl(id); dropBitmap(id); if (it.fills) delete it.fills[id]; if (i === 0) it.thumb = makeThumb(c); await saveItem(it); } catch { toast("Drehen fehlgeschlagen"); }
     unbusy(); renderDetail();
   },
   delpage: async el => {
     const it = item(S.openId), i = +el.dataset.i;
     if (!(await confirmBox("Seite löschen?", `Seite ${i + 1} wird entfernt.`))) return;
-    const id = it.pages.splice(i, 1)[0]; await store.del("blobs", id); dropUrl(id);
+    const id = it.pages.splice(i, 1)[0]; await store.del("blobs", id); dropUrl(id); dropBitmap(id); if (it.fills) delete it.fills[id];
     if (i === 0){ if (it.pages[0]){ const bmp = await createImageBitmap(await getBlob(it.pages[0])), c = document.createElement("canvas"); c.width = bmp.width; c.height = bmp.height; c.getContext("2d").drawImage(bmp, 0, 0); it.thumb = makeThumb(c); } else it.thumb = ""; }
     await saveItem(it); renderDetail();
   },
@@ -1330,10 +1641,21 @@ const A = {
   analyzeAll: async () => { const un = docs().filter(d => !d.summary); if (!un.length) return; for (const d of un) await aiAnalyze(d, true); toast("Fertig analysiert"); render(); },
   tool: el => { const it = item(S.openId), t = el.dataset.t; if (!it) return;
     if (t === "sheet"){ aiSheet(it); return; }
+    if (t === "fill"){ S.dtab = "pages"; if (hasFills(it)) renderDetail(); else fillDoc(it); return; }
     if (S.tool === t){ S.tool = null; renderDetail(); return; }
     S.tool = t;
     if (t === "explain" && !it.explain && S.live["ex-" + it.id] === undefined) { aiExplain(it); return; }
     renderDetail(); },
+  fillGo: () => { const it = item(S.openId); if (it) fillDoc(it); },
+  fillAgain: async () => { const it = item(S.openId); if (!it) return; if (!(await confirmBox("Neu ausfüllen?", "Alle eingetragenen Antworten (auch deine Änderungen) werden ersetzt.", "Neu ausfüllen", false))) return; it.fills = {}; fillDoc(it); },
+  fillEdit: () => { S.fillEdit = !S.fillEdit; const it = item(S.openId); if (!S.fillEdit && it) saveItem(it); renderDetail(); },
+  fillToggle: async () => { const it = item(S.openId); it.fillOn = it.fillOn === false; S.fillEdit = false; await saveItem(it); renderDetail(); },
+  fillStyle: async el => { const it = item(S.openId); it.fillStyle = el.dataset.s; await saveItem(it); renderDetail(); },
+  pdf: () => { const it = item(S.openId); if (it) exportPdf(it); },
+  zoomcv: el => { openModal(`<div class="zoomwrap"><img src="${el.toDataURL("image/jpeg", .9)}" alt=""></div><div class="mact"><button class="btn" data-act="zIn">Zoom</button><button class="btn primary" data-act="mclose">Schließen</button></div>`); },
+  feSize: el => { const st = S._fe; if (!st) return; const d = +el.dataset.d; if (!d){ st.f.px = null; } else { const bmp = bmpCache.get(st.pid); const W = bmp ? bmp.width : 1600, H = bmp ? bmp.height : 2200; const cur = st.f.px ? st.f.px * W : fieldLayout(st.f, W, H, st.it.fillStyle).px; st.f.px = cur * (d > 0 ? 1.15 : .87) / W; } st.f.text = $("#feText").value; saveItemSoon(st.it); redrawPage(st.it, st.pid); },
+  feSave: () => { const st = S._fe; if (!st) return; st.f.text = $("#feText").value.trim(); st.isNew = false; if (!st.f.text) st.it.fills[st.pid].fields = st.it.fills[st.pid].fields.filter(x => x !== st.f); saveItemSoon(st.it); closeModal(); renderDetail(); },
+  feDel: () => { const st = S._fe; if (!st) return; st.it.fills[st.pid].fields = st.it.fills[st.pid].fields.filter(x => x !== st.f); st.isNew = false; saveItemSoon(st.it); closeModal(); renderDetail(); },
   reExplain: () => { const it = item(S.openId); if (it) aiExplain(it, true); },
   quizNew: () => { const it = item(S.openId); if (it) aiQuiz(it); },
   quizRetry: () => { const it = item(S.openId); it.quiz.idx = 0; it.quiz.picks = []; saveItemSoon(it); renderDetail(); },
@@ -1351,7 +1673,7 @@ const A = {
   useTask: async el => { const it = item(S.openId), t = S.found?.tasks[+el.dataset.i]; if (!t || t.added) return; const n = newItem("task", {title:t.titel, due:t.faellig || nextLessonDate(it.subjectId), subjectId:it.subjectId, topicId:it.topicId || "", fromId:it.id}); await saveItem(n); t.added = true; toast("To-do angelegt"); renderDetail(); },
   ikind: el => { S.ikind = el.dataset.k; $$("#kindSeg button").forEach(b => b.classList.toggle("on", b === el)); },
   mode: el => { S.mode = el.dataset.m; $$("#modeSeg button").forEach(b => b.classList.toggle("on", b === el)); },
-  imGo: () => { const files = S.pending || []; S.pending = null; const sid = $("#imSub").value, tw = $("#imTopicWrap"); const opts = {title:$("#imTitle").value.trim(), subjectId:sid, topicId: tw && !tw.hidden ? $("#imTopic").value : "", kind:S.ikind, mode:S.mode, sep:!!$("#imSep")?.checked, ai:!!$("#imAi")?.checked}; S.lastMode = S.mode; if ($("#imAi")) S.autoAi = opts.ai; setMeta("prefs", {lastMode:S.lastMode, autoAi:S.autoAi}); closeModal(); doImport(files, opts); },
+  imGo: () => { const files = S.pending || []; S.pending = null; const sid = $("#imSub").value, tw = $("#imTopicWrap"); const opts = {title:$("#imTitle").value.trim(), subjectId:sid, topicId: tw && !tw.hidden ? $("#imTopic").value : "", kind:S.ikind, mode:S.mode, sep:!!$("#imSep")?.checked, ai:!!$("#imAi")?.checked, fill:!!$("#imFill")?.checked}; S.lastMode = S.mode; if ($("#imAi")) S.autoAi = opts.ai; if ($("#imFill")) S.autoFill = opts.fill; setMeta("prefs", {lastMode:S.lastMode, autoAi:S.autoAi, autoFill:S.autoFill}); closeModal(); doImport(files, opts); },
   tChip: el => { $("#tDue").value = el.dataset.d || addDays(+el.dataset.n); $$("#tChips .chip").forEach(b => b.classList.toggle("on", b === el)); },
   tSave: async () => { const title = $("#tTitle").value.trim(); if (!title){ $("#tTitle").focus(); return; } const sid = $("#tSub").value, t = newItem("task", {title, subjectId:sid, topicId:ctxTopic(sid), due:$("#tDue").value}); await saveItem(t); closeModal(); toast("To-do gespeichert"); render(); },
   newSub: () => subjectDialog(null), editSub: el => subjectDialog(el.dataset.id),
@@ -1439,7 +1761,7 @@ async function init(){
     S.subjects.forEach(s => { if (!s.topics) s.topics = []; });
     S.timetable = (await getMeta("timetable")) || [];
     S.lastBackup = (await getMeta("lastBackup")) || 0;
-    const prefs = await getMeta("prefs"); if (prefs){ S.lastMode = prefs.lastMode; S.autoAi = prefs.autoAi; }
+    const prefs = await getMeta("prefs"); if (prefs){ S.lastMode = prefs.lastMode; S.autoAi = prefs.autoAi; S.autoFill = prefs.autoFill; }
     S.gkey = (await getMeta("gkey")) || ""; S.gmodel = (await getMeta("gmodel")) || ""; S.hideInstall = !!(await getMeta("hideInstall"));
     if (!(await getMeta("seeded"))){ seed(); for (const s of S.subjects) await store.put("subjects", s); await saveTT(); await setMeta("seeded", 1); }
   } catch (e){ console.error(e); if (!S.subjects.length) seed(); }
