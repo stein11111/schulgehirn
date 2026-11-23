@@ -990,8 +990,11 @@ function fieldLayout(f, W, H, style, base){
   let px, lines;
   if (f.rules && f.rules.length){
     const sp = (f.spacing || f.h / f.rules.length) * H;
-    px = f.px ? f.px * W : (f.rules.length > 1 ? Math.min(B, sp * .88) : B);
-    const floor = f.rules.length === 1 ? Math.max(minPx, B * .8) : minPx;
+    // Größe richtet sich nach den Linien: Handschrift füllt ca. 70 % des Linienabstands; bei einzelner Linie nach dem Text daneben
+    const local = f.lb ? f.lb * H * (style === "print" ? 1.05 : 1.7) : B;
+    const k = style === "print" ? .78 : 1;
+    px = f.px ? f.px * W : (f.rules.length > 1 ? Math.min(sp * .85 * k, Math.max(B, sp * .7 * k)) : Math.min(Math.max(B, Math.min(local, B * 1.4)), sp * 1.2));
+    const floor = f.rules.length === 1 ? Math.max(minPx, px * .95) : Math.max(minPx, px * .75);
     for (let k = 0; k < 60; k++){ lines = wrapText(f.text, bw, fontOf(style, px)); if (f.px || lines.length <= f.rules.length || px < floor) break; px *= .93; }
     if (!f.px && lines.length > f.rules.length && f.rules.length === 1){ // kurze Lücke: lieber nach rechts verlängern als winzig schreiben
       mctx.font = fontOf(style, px); const need = mctx.measureText(String(f.text).replace(/\s+/g, " ")).width + px * .3;
@@ -1005,6 +1008,7 @@ function fieldLayout(f, W, H, style, base){
   for (let k = 0; k < 60; k++){ lines = wrapText(f.text, bw - px * .2, fontOf(style, px)); if (f.px || lines.length * px * lh <= bh * 1.02 || px < minPx) break; px *= .93; }
   const total = lines.length * px * lh;
   const top = f.kind === "luecke" || f.kind === "linie" ? by + bh - total : f.kind === "tabelle" ? by + Math.max(0, (bh - total) / 2) : by + Math.min(px * .15, Math.max(0, bh - total));
+  if (f.alignRight){ mctx.font = fontOf(style, px); return {px, font:fontOf(style, px), lines: lines.map((t, i) => ({t, x:bx + bw - mctx.measureText(t).width - px * .2, y:top + px * lh * i + px * .9}))}; }
   return {px, font:fontOf(style, px), lines: lines.map((t, i) => ({t, x:bx + px * .15, y:top + px * lh * i + px * .9}))};
 }
 function renderFilled(bmp, F, style, labels, target){
@@ -1073,6 +1077,13 @@ function snapField(f, G){
       if (cur && (!best || cur.b - cur.a > best.b - best.a)) best = cur;
       if (best && best.b - best.a >= bw * .4){ X0 = best.a; X1 = best.b; }
       const sp = rules.length > 1 ? (rules[rules.length - 1] - rules[0]) / (rules.length - 1) : Math.max(Math.min(bh, gh * .045), gh * .026);
+      // Höhe des gedruckten Texts direkt links/rechts der Lücke messen (z. B. "Name:")
+      if (rules.length === 1){
+        const yb = rules[0] - 2, yt = Math.max(0, Math.round(rules[0] - gh * .045));
+        const span = (a, b2) => { let t = -1, bt = -1; for (let yy = yt; yy <= yb; yy++){ let hit = false; for (let x = Math.max(0, a); x < Math.min(gw, b2); x++) if (dark(x, yy)){ hit = true; break; } if (hit){ if (t < 0) t = yy; bt = yy; } } return t < 0 ? 0 : bt - t + 1; };
+        let lb = span(X0 - Math.round(gw * .18), X0 - 3); if (!lb) lb = span(X1 + 3, X1 + Math.round(gw * .18));
+        f.lb = lb >= gh * .005 && lb <= gh * .04 ? lb / gh : null;
+      }
       const top = Math.max(0, rules[0] - sp * .92);
       Object.assign(f, {x:X0 / gw, w:(X1 - X0) / gw, y:top / gh, h:(rules[rules.length - 1] - top) / gh, rules:rules.map(r => r / gh), spacing:sp / gh});
       return f;
@@ -1111,48 +1122,63 @@ function parseFields(arr, startId = 1){
   return out;
 }
 function setFillStatus(key, txt){ S.live[key] = txt; const el = document.getElementById("fillstat"); if (el) el.innerHTML = thinking(esc(txt)); }
+async function fillPage(it, pid, n){
+  const blob = await getBlob(pid); if (!blob) return 0;
+  const bmp = await bitmapFor(pid), G = grayOf(bmp);
+  const r = await AI.json(`${docContext(it, 8000)}
+Das Bild zeigt Seite ${n + 1} von ${it.pages.length} dieses Dokuments (Berufsschule, Deutschland). Heute ist ${today()}.
+${personal()}
+Fülle diese Seite PERFEKT aus – wie ein sehr guter Schüler.
+1. Finde JEDES Antwortfeld: Lücken (___ oder …), leere Schreiblinien, leere Kästen, leere Tabellenzellen, freien Platz unter/neben einer Frage, Ankreuzkästchen, Name/Klasse/Datum.
+2. Schreib in jedes Feld die fachlich korrekte, vollständige Antwort in der Länge, die zum Platz passt (Lücke: 1–3 Wörter; Linien: so viel, wie auf die Linien passt; Rechnen: kurzer Rechenweg + Ergebnis mit Einheit). Ankreuzfelder: NUR die richtigen Kästchen mit "X".
+3. box_2d = [ymin, xmin, ymax, xmax], normiert 0–1000 auf die Bildgröße. Die Box umschließt NUR den freien Schreibbereich: bei Linien den Bereich über der/den Linie(n) (Unterkante = unterste Linie), bei Kästen/Zellen das Innere. Nie gedruckten Text überdecken.
+4. Mehrere Linien untereinander zur selben Aufgabe = EIN Feld (art "linie").
+Antworte NUR mit JSON: {"felder":[{"aufgabe":"Nr.","art":"luecke|linie|feld|tabelle|kreuz","box_2d":[ymin,xmin,ymax,xmax],"text":"Antwort"}]}`, {images:[blob]});
+  const fields = parseFields(r?.felder).map(f => snapField(f, G));
+  const F = it.fills[pid] = {fields, style:it.fillStyle || "hand", base:measureTextSize(G)};
+  if (n === 0) ensureName(F, G);
+  refresh();
+  if (fields.length){ try { await selfCheck(it, pid, bmp, G); if (n === 0) ensureName(F, G); } catch (e){ console.warn("check", e); } }
+  await saveItem(it); refresh();
+  return F.fields.length;
+}
 async function fillDoc(it, onlyPid = null){
   if (!AI.vision){ toast("Dafür muss zuerst die KI eingerichtet sein (Mehr → KI-Tutor)"); return; }
   const key = "fill-" + it.id; if (S.live[key] !== undefined) return;
   S.dtab = "pages"; S.fillEdit = false; it.fillOn = true; it.fills = it.fills || {};
-  setFillStatus(key, "Starte…"); refresh();
+  const pages = onlyPid ? [onlyPid] : [...it.pages]; let done = 0, total = 0;
+  const status = () => setFillStatus(key, pages.length > 1 ? `Fülle ${pages.length} Seiten gleichzeitig aus… (${done}/${pages.length} fertig)` : "Löse die Aufgaben und trage alles ein…");
+  status(); refresh();
   await ensureHandFont();
-  const pages = onlyPid ? [onlyPid] : [...it.pages]; let total = 0;
   try {
-    for (let n = 0; n < pages.length; n++){
-      const pid = pages[n], lbl = pages.length > 1 ? `Seite ${n + 1}/${pages.length}: ` : "";
-      setFillStatus(key, lbl + "Antwortfelder finden & lösen…");
-      const blob = await getBlob(pid); if (!blob) continue;
-      const bmp = await bitmapFor(pid), G = grayOf(bmp);
-      const r = await AI.json(`${docContext(it, 20000)}
-Das Bild zeigt Seite ${n + 1} von ${it.pages.length} dieses Dokuments (Berufsschule, Deutschland). Heute ist ${today()}.
-${personal()}
-Deine Aufgabe: Fülle diese Seite PERFEKT aus – so, wie ein sehr guter Schüler sie ausfüllen würde.
-1. Finde JEDES Antwortfeld auf dieser Seite: Lücken (___ oder …), leere Schreiblinien, leere Kästen, leere Tabellenzellen, freien Platz direkt unter/neben einer Frage, Ankreuzkästchen.
-2. Schreib in jedes Feld die fachlich korrekte, vollständige Antwort – in der Länge, die zum Platz passt (Lücke: 1–3 Wörter; Linien: so viel Text, wie auf die Linien passt; Rechenaufgaben: kurzer Rechenweg + Ergebnis mit Einheit). Bei Ankreuzfeldern NUR die richtigen Kästchen mit Text "X" angeben.
-3. Gib die Position als box_2d = [ymin, xmin, ymax, xmax], normiert auf 0–1000 relativ zur Bildgröße. Die Box umschließt NUR den freien Schreibbereich: bei Linien den Bereich über der/den Linie(n) (Unterkante = unterste Linie), bei Kästen/Zellen das Innere. Niemals gedruckten Text überdecken.
-4. Mehrere Linien untereinander zur selben Aufgabe = EIN Feld (art "linie"), das alle Linien umfasst.
-Antworte NUR mit JSON: {"felder":[{"aufgabe":"Nr.","art":"luecke|linie|feld|tabelle|kreuz","box_2d":[ymin,xmin,ymax,xmax],"text":"Antwort"}]}
-Wenn die Seite keine Antwortfelder hat: {"felder":[]}`, {images:[blob], tier:"complex"});
-      let fields = parseFields(r?.felder).map(f => snapField(f, G));
-      it.fills[pid] = {fields, style:it.fillStyle || "hand", base:measureTextSize(G)};
-      refresh();
-      if (fields.length){
-        setFillStatus(key, lbl + "Selbstkontrolle wie ein Lehrer…");
-        try { await selfCheck(it, pid, bmp, G); } catch (e){ console.warn("check", e); }
-      }
-      total += it.fills[pid].fields.length;
-      await saveItem(it); refresh();
-    }
-    toast(total ? `${total} Antworten eingetragen` : "Keine Antwortfelder gefunden");
+    // alle Seiten parallel (max. 3 gleichzeitig) – jede Seite: ausfüllen → sofort anzeigen → Selbstkontrolle
+    let next = 0; const errs = [];
+    const worker = async () => { while (next < pages.length){ const n = next++; try { total += await fillPage(it, pages[n], it.pages.indexOf(pages[n])); } catch (e){ errs.push(e); } done++; status(); } };
+    await Promise.all(Array.from({length:Math.min(3, pages.length)}, worker));
+    if (errs.length && !total) throw errs[0];
+    toast(total ? `Fertig – ${total} Einträge` : "Keine Antwortfelder gefunden");
   } catch (e){ const m = aiErr(e); if (m) toast(m); }
   delete S.live[key]; await saveItem(it); refresh();
+}
+/* Name steht auf jedem Blatt: gibt es kein Namensfeld, kommt er oben rechts hin */
+function ensureName(F, G){
+  const nm = S.me.name.toLowerCase();
+  if (F.fields.some(f => String(f.text).toLowerCase().includes(nm))) return;
+  const {g, w, h} = G, x0 = Math.round(w * .55), x1 = Math.round(w * .95), need = Math.max(h * .02, (F.base || .016) * h * 1.9);
+  let best = null, run = 0;
+  for (let y = Math.round(h * .01); y < h * .12; y++){
+    let n = 0; for (let x = x0; x < x1; x += 2) if (g[y * w + x] < 145) n++;
+    if (n === 0){ run++; if (run >= need && !best) best = y - run + 1; } else run = 0;
+  }
+  const top = best != null ? best / h : .012, hh = need / h;
+  const id = String(F.fields.reduce((a, f) => Math.max(a, +f.id || 0), 0) + 1);
+  F.fields.push({id, kind:"feld", text:S.me.name, x:.6, y:top, w:.35, h:hh, auto:true, alignRight:true});
 }
 async function selfCheck(it, pid, bmp, G){
   const F = it.fills[pid]; await ensureHandFont();
   const blob = await canvasBlob(renderFilled(bmp, F, it.fillStyle, true), .85);
   const list = F.fields.map(f => `#${f.id} (${f.kind}${f.q ? ", Aufgabe " + f.q : ""}): ${f.text}`).join("\n");
-  const r = await AI.json(`${docContext(it, 12000)}
+  const r = await AI.json(`${docContext(it, 6000)}
 Das Bild zeigt eine Seite dieses Dokuments, die bereits AUSGEFÜLLT wurde: blaue Schrift = eingetragene Antworten, rote Nummern + rote Rahmen = Feld-IDs und Feldgrenzen.
 Eingetragene Felder:
 ${list}
@@ -1162,7 +1188,7 @@ Prüfe streng wie ein Lehrer:
 2. Steht jede Antwort im richtigen Antwortbereich – nicht über gedrucktem Text, nicht bei der falschen Aufgabe, nicht außerhalb der Linie/des Kästchens?
 3. Fehlt ein Antwortfeld – auch Name/Klasse/Datum? ${personal()}
 Antworte NUR mit JSON: {"korrekturen":[{"id":"Feld-ID","text":"korrigierte Antwort – nur wenn falsch/unvollständig","box_2d":[ymin,xmin,ymax,xmax] – nur wenn falsch platziert, 0–1000}],"loeschen":["Feld-IDs, die nicht hingehören"],"neu":[{"aufgabe":"Nr.","art":"luecke|linie|feld|tabelle|kreuz","box_2d":[ymin,xmin,ymax,xmax],"text":"..."}]}
-Ist alles perfekt: {"korrekturen":[],"loeschen":[],"neu":[]}`, {images:[blob], tier:"complex"});
+Ist alles perfekt: {"korrekturen":[],"loeschen":[],"neu":[]}`, {images:[blob]});
   if (!r || typeof r !== "object") return;
   const del = new Set((r.loeschen || []).map(String));
   F.fields = F.fields.filter(f => !del.has(f.id));
@@ -1373,7 +1399,7 @@ async function doImport(files, {title = "", subjectId = "inbox", topicId = "", k
   } finally { unbusy(); }
   toast(failed ? failed + " Datei(en) konnten nicht gelesen werden" : cut ? "Nur die ersten 60 PDF-Seiten übernommen" : targetId ? "Seite hinzugefügt" : "Abgelegt");
   render();
-  if (made.length === 1){ const it = made[0]; openItem(it.id); (async () => { if (ai) await aiAnalyze(it); if (fill) await fillDoc(it); })(); }
+  if (made.length === 1){ const it = made[0]; openItem(it.id); Promise.all([ai ? aiAnalyze(it) : null, fill ? fillDoc(it) : null]); }
   else if (made.length && ai){ for (const g of made) await aiAnalyze(g, true); }
 }
 
@@ -1424,7 +1450,7 @@ Regeln: "aufgaben" enthält ALLE Aufgaben/Fragen auf dem Dokument (bei reinen In
     await saveItem(it);
     const hw = Array.isArray(r.hausaufgaben) ? r.hausaufgaben.filter(t => t && t.titel).map(t => ({titel:String(t.titel), faellig:/^\d{4}-\d{2}-\d{2}$/.test(t.faellig || "") ? t.faellig : ""})) : [];
     S.found = {id:it.id, tasks:hw};
-    if (S.openId === it.id) S.dtab = "learn";
+    if (S.openId === it.id && S.live["fill-" + it.id] === undefined && !hasFills(it)) S.dtab = "learn";
     if (!quiet) toast(it.questions.length ? `${it.questions.length} Aufgaben gefunden – los geht's` : "Analysiert");
   } catch (e){ const m = aiErr(e); if (m) toast(m); }
   finally { delete S.live[key]; if (quiet) unbusy(); renderAll(); }
