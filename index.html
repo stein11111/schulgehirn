@@ -330,6 +330,9 @@ details.x summary::-webkit-details-marker{display:none}
 .vend{display:flex;gap:10px;margin-top:10px}
 .vpill{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 18px;border-radius:99px;background:var(--c);color:#fff;font-weight:700}
 .vpill+.vpill{background:#1c1c22}
+.vcard{display:flex;align-items:center;gap:12px;margin-top:14px;padding:14px;border-radius:var(--r);background:linear-gradient(135deg,color-mix(in srgb,var(--c) 22%,var(--surface)),var(--surface));border:1px solid var(--border)}
+.vct{width:52px;height:52px;border-radius:16px;background:var(--c);color:#fff;display:grid;place-items:center;flex:none;padding-left:3px}
+.vcard b{display:block}.vcard small{display:block;color:var(--muted);font-size:12.5px;line-height:1.35;margin-top:2px}
 .transcript{white-space:pre-wrap;font-size:13.5px;line-height:1.55;padding:14px;max-height:420px;overflow:auto;margin-top:6px}
 
 /* ---------- Modal / Toast ---------- */
@@ -462,6 +465,7 @@ const P = {
   calc:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 18h.01M12 18h.01M16 18h.01"/>',
   monitor:'<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
   network:'<circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M12 7.5v4M12 11.5 5 16.5M12 11.5l7 5"/>',
+  music:'<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
   stop:'<rect x="6" y="6" width="12" height="12" rx="2"/>'
 };
 const ic = (n, s = 20, sw = 2) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n] || ""}</svg>`;
@@ -545,7 +549,8 @@ function dropUrl(id){ const u = urlCache.get(id); if (u){ URL.revokeObjectURL(u)
 let SAMPLE = null, DL = null, IMG = null;
 async function initCaps(){
   if (!window.claude || typeof window.claude.use !== "function") return;
-  const [dl, sm] = await Promise.all([claude.use("downloads").catch(() => null), claude.use("sample").catch(() => null)]);
+  const [dl, sm, tt] = await Promise.all([claude.use("downloads").catch(() => null), claude.use("sample").catch(() => null), claude.use("tts").catch(() => null)]);
+  TTSC = tt;
   DL = dl; SAMPLE = sm;
   if (SAMPLE){ try { IMG = (await SAMPLE.limits())?.images || null; } catch { IMG = null; } }
   renderAll();
@@ -1540,6 +1545,7 @@ function testContext(it, max = 30000){
   for (const d of rel){
     let p = `--- ${d.type === "note" ? "Notiz" : (KIND[d.kind] || KIND.blatt).l}: ${d.title}\n`;
     if (d.summary) p += `Zusammenfassung: ${d.summary}\n`;
+    if (d.questions?.length) p += `Aufgaben auf diesem Blatt:\n${d.questions.map(q => `${q.nr}) ${q.frage}`).join("\n").slice(0, 3000)}\n`;
     const body = d.transcript || d.text || ""; if (body) p += body.slice(0, 5000) + "\n";
     if (size + p.length > max) break; parts.push(p); size += p.length;
   }
@@ -1558,7 +1564,7 @@ Antworte NUR mit JSON: {"themen":[{"titel":"kurzer Thementitel","was":"1 Satz: w
     it.plan = String(r?.plan || "");
     if (!it.title) it.title = `${subj(it.subjectId).short}-Test`;
     await saveItem(it);
-    setTimeout(() => autoTopicVideos(it), 50); // zu jedem Thema automatisch ein Erklärvideo
+    it.videoStale = true; setTimeout(() => testVideo(it, false), 50); // automatisch EIN Gesamtvideo zum ganzen Teststoff
   } catch (e){ const m = aiErr(e); if (m) toast(m); }
   delete S.live[key]; renderDetail();
 }
@@ -1631,6 +1637,9 @@ function testDetail(it){
   h += `<label class="f">Was muss ich können? (laut Lehrer/in)<textarea data-f="goals" style="min-height:140px" placeholder="Schreib rein, was angesagt wurde – z. B.&#10;- Zustandekommen eines Kaufvertrags erklären&#10;- Pflichten von Käufer und Verkäufer&#10;- Anfrage und Angebot unterscheiden&#10;- Mängelarten nennen">${esc(it.goals || "")}</textarea></label>`;
   if (!AI.on) return h + aiSetupCard("Dann erkläre ich dir jedes Thema, mache dir einen Lernplan bis zum Test und einen Probetest mit Note.");
   const planBusy = S.live["plan-" + it.id] !== undefined;
+  const vk = "vid-" + it.id, vBusy = S.live[vk] !== undefined, scn = it.video?.szenen?.length || 0;
+  if ((it.goals || "").trim() || it.video) h += `<div class="vcard" style="--c:${subj(it.subjectId).color}"><div class="vct">${ic("play", 26, 0)}</div><div style="flex:1;min-width:0"><b>Erklärvideo: alles für den Test</b><small>${vBusy ? "Wird erstellt – erklärt alle Themen und die Aufgaben von deinen Blättern…" : it.video && !it.videoStale ? `Frau Lea & Max erklären alles · ${scn} Szenen · ca. ${Math.max(2, Math.round(scn * .4))} Min.` : "Ein Video mit allem, was die Lehrerin erwartet – anhand deiner Blätter"}</small></div>
+    <button class="btn ${it.video && !it.videoStale ? "primary" : "soft"}" data-act="tVideoAll" ${vBusy ? "disabled" : ""}>${vBusy ? thinking("") : it.video && !it.videoStale ? "Ansehen" : "Erstellen"}</button></div>${it.video && !vBusy ? `<button class="btn sm ghost" style="margin-top:4px" data-act="tVideoNew">${ic("refresh", 14)}Video neu erstellen (z. B. nach neuen Blättern)</button>` : ""}`;
   h += `<button class="btn primary block lg" style="margin-top:12px" data-act="tPlan" ${planBusy ? "disabled" : ""}>${planBusy ? thinking("erstelle Lernplan") : ic("sparkle", 18) + (it.themen?.length ? "Lernplan aktualisieren" : "Erklären & Lernplan erstellen")}</button>`;
   const th = it.themen || [];
   if (th.length){
@@ -1639,7 +1648,7 @@ function testDetail(it){
     h += th.map((t, i) => { const key = `tx-${it.id}-${i}`, live = S.live[key] !== undefined, open = S.topicOpen === i || live;
       return `<div class="card qcard ${t.ok ? "richtig" : ""}"><div class="qhead"><span class="qnr">${i + 1}</span><b style="flex:1;font-size:15px">${esc(t.titel)}</b>${t.ok ? `<span class="badge ok">${ic("check", 13, 3)}sitzt</span>` : ""}</div>
         ${t.was ? `<div class="muted" style="font-size:14px;margin-top:6px">${esc(t.was)}</div>` : ""}
-        <div class="qacts"><button class="btn sm ${t.explain ? "" : "soft"}" data-act="tExplain" data-i="${i}" ${live ? "disabled" : ""}>${ic("bulb", 15)}${t.explain ? (open ? "Zuklappen" : "Erklärung") : "Erklär mir das"}</button>${(() => { const vk = `vid-${it.id}-${i}`, vl = S.live[vk] !== undefined; return `<button class="btn sm ${t.video ? "primary" : ""}" data-act="tVideo" data-i="${i}" ${vl ? "disabled" : ""}>${vl ? thinking("Video entsteht") : ic("play", 14, 0) + (t.video ? "Video ansehen" : "Erklärvideo")}</button>`; })()}<button class="btn sm ${t.ok ? "ghost" : ""}" data-act="tOk" data-i="${i}">${ic("check", 15, 2.6)}${t.ok ? "Doch noch nicht" : "Sitzt"}</button></div>
+        <div class="qacts"><button class="btn sm ${t.explain ? "" : "soft"}" data-act="tExplain" data-i="${i}" ${live ? "disabled" : ""}>${ic("bulb", 15)}${t.explain ? (open ? "Zuklappen" : "Erklärung") : "Erklär mir das"}</button><button class="btn sm ${t.ok ? "ghost" : ""}" data-act="tOk" data-i="${i}">${ic("check", 15, 2.6)}${t.ok ? "Doch noch nicht" : "Sitzt"}</button></div>
         ${open && (t.explain || live) ? `<div class="fb" style="background:var(--surface2)"><div class="ai-out" id="live-${key}">${liveOrSaved(key, t.explain)}</div>${t.explain && !live ? `<button class="btn sm ghost" style="margin-top:6px" data-act="tExplainAgain" data-i="${i}">${ic("refresh", 14)}Anders erklären</button>` : ""}</div>` : ""}</div>`; }).join("");
     if (it.plan) h += `<details class="x" ${S.planOpen ? "open" : ""}><summary data-act="planToggle">${ic("chev", 16)}Lernplan bis zum Test</summary><div class="card pad ai-out">${md(it.plan)}</div></details>`;
   }
@@ -1703,18 +1712,132 @@ function voiceFor(c){
 const sleepTok = (ms, tok) => new Promise(r => setTimeout(r, ms)).then(() => tok === V.tok);
 const V = {tok:0, s:null, idx:0, playing:false, rate:1, muted:false, subs:true, line:-1, rev:0, ans:false, cd:0, cur:null, end:false};
 function cleanSpeech(t){ return String(t || "").replace(/\*\*/g, "").replace(/[#*_`]/g, "").replace(/\bz\.\s?B\./g, "zum Beispiel").replace(/\bd\.\s?h\./g, "das heißt").replace(/\bu\.\s?a\./g, "unter anderem").replace(/§/g, "Paragraf ").replace(/€/g, " Euro"); }
+/* ---------- Stimmen: Claude-Stimmen → Google-KI-Stimmen → Geräte-Stimme ---------- */
+let TTSC = null; // Claude-Sprachausgabe (nur in Claude im Browser)
+const VOICE_CLAUDE = {lea:"airy", max:"rounded"};
+const VOICE_GEMINI = {lea:"Kore", max:"Puck"};
+const GTTS_MODELS = ["gemini-3.8-flash-tts", "gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts"];
+let gttsModel = null, gttsBlockedUntil = 0;
+const ttsMem = new Map(), ttsPending = new Map();
+const hashStr = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = (h * 33 ^ s.charCodeAt(i)) >>> 0; return h.toString(36); };
+function pcmToWav(b64, rate = 24000){
+  const bin = atob(b64), n = bin.length, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, "RIFF"); v.setUint32(4, 36 + n, true); w(8, "WAVE"); w(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, "data"); v.setUint32(40, n, true);
+  const u = new Uint8Array(buf, 44); for (let i = 0; i < n; i++) u[i] = bin.charCodeAt(i);
+  return new Blob([buf], {type:"audio/wav"});
+}
+const useGeminiTTS = () => !TTSC && !SAMPLE && !!S.gkey && navigator.onLine && Date.now() > gttsBlockedUntil;
+async function geminiSpeech(text, who){
+  const id = "tts-" + hashStr(who + "|" + text);
+  if (ttsMem.has(id)) return ttsMem.get(id);
+  if (ttsPending.has(id)) return ttsPending.get(id);
+  const p = (async () => {
+    try { const r = await store.get("blobs", id); if (r?.blob){ ttsMem.set(id, r.blob); return r.blob; } } catch {}
+    if (!useGeminiTTS()) return null;
+    for (const model of gttsModel ? [gttsModel] : GTTS_MODELS){
+      let res;
+      try { res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {method:"POST", headers:{"x-goog-api-key":S.gkey, "Content-Type":"application/json"},
+        body:JSON.stringify({contents:[{parts:[{text}]}], generationConfig:{responseModalities:["AUDIO"], speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:VOICE_GEMINI[who] || "Kore"}}}}})}); }
+      catch { return null; }
+      if (res.status === 429){ gttsBlockedUntil = Date.now() + 60000; return null; }
+      if (res.status === 401 || res.status === 403){ gttsBlockedUntil = Date.now() + 600000; return null; }
+      if (!res.ok){ const t = await res.text().catch(() => ""); if (/api.?key/i.test(t)){ gttsBlockedUntil = Date.now() + 600000; return null; } continue; }
+      const j = await res.json().catch(() => null), part = j?.candidates?.[0]?.content?.parts?.find(x => x.inlineData);
+      if (!part) continue;
+      gttsModel = model;
+      const rate = +(/rate=(\d+)/.exec(part.inlineData.mimeType || "")?.[1] || 24000);
+      const blob = /wav|mpeg|mp3|ogg/.test(part.inlineData.mimeType || "") ? dataURLToBlob(`data:${part.inlineData.mimeType};base64,${part.inlineData.data}`) : pcmToWav(part.inlineData.data, rate);
+      ttsMem.set(id, blob); store.put("blobs", {id, blob}).catch(() => {});
+      return blob;
+    }
+    gttsBlockedUntil = Date.now() + 600000; // kein TTS-Modell erreichbar → Gerätestimme
+    return null;
+  })().finally(() => ttsPending.delete(id));
+  ttsPending.set(id, p); return p;
+}
+function prefetchVoices(script){
+  if (!useGeminiTTS() || !script) return;
+  const lines = script.szenen.flatMap(sc => (sc.dialog || []).map(d => [cleanSpeech(d.text), d.wer]));
+  let k = 0; const w = async () => { while (k < lines.length && useGeminiTTS()){ const [t, who] = lines[k++]; await geminiSpeech(t, who); } };
+  w(); w();
+}
+/* ---------- Konzentrationsmusik (ruhig, ohne Gesang, in der App erzeugt) ---------- */
+const MUSIC = {ctx:null, out:null, on:true, timer:null, step:0};
+const NOTE = n => 440 * Math.pow(2, (n - 69) / 12);
+const CHORDS = [[45, 52, 55, 59, 60], [41, 48, 52, 57, 60], [48, 55, 59, 64, 67], [43, 50, 52, 59, 62]]; // Am9 · Fmaj7 · Cmaj7 · G6
+function musicVoice(freq, t0, dur, vol, type = "sine"){
+  const c = MUSIC.ctx, o = c.createOscillator(), g = c.createGain();
+  o.type = type; o.frequency.value = freq; o.detune.value = (Math.random() - .5) * 8;
+  g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0 + Math.min(2.2, dur * .35)); g.gain.linearRampToValueAtTime(0, t0 + dur);
+  o.connect(g); g.connect(MUSIC.out); o.start(t0); o.stop(t0 + dur + .1);
+}
+function musicBar(){
+  const c = MUSIC.ctx; if (!c) return; const t = c.currentTime + .05, ch = CHORDS[MUSIC.step++ % CHORDS.length];
+  ch.forEach((n, i) => { musicVoice(NOTE(n), t, 9.5, i === 0 ? .14 : .07); musicVoice(NOTE(n) * 1.003, t, 9.5, .03, "triangle"); });
+  const arp = [ch[2] + 12, ch[3] + 12, ch[4] + 12, ch[3] + 12]; // leise Klavier-ähnliche Töne
+  arp.forEach((n, i) => { const st = t + 1 + i * 2 + Math.random() * .2, o = c.createOscillator(), g = c.createGain(); o.type = "sine"; o.frequency.value = NOTE(n);
+    g.gain.setValueAtTime(0, st); g.gain.linearRampToValueAtTime(.045, st + .02); g.gain.exponentialRampToValueAtTime(.0005, st + 2.6); o.connect(g); g.connect(MUSIC.out); o.start(st); o.stop(st + 2.8); });
+}
+function musicStart(){
+  if (!MUSIC.on || MUSIC.timer) return;
+  const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+  try {
+    if (!MUSIC.ctx){ const c = MUSIC.ctx = new AC(), lp = c.createBiquadFilter(), g = c.createGain(); lp.type = "lowpass"; lp.frequency.value = 1700; g.gain.value = 0; g.connect(lp); lp.connect(c.destination); MUSIC.out = g; }
+    MUSIC.ctx.resume?.();
+    const now = MUSIC.ctx.currentTime; MUSIC.out.gain.cancelScheduledValues(now); MUSIC.out.gain.setValueAtTime(MUSIC.out.gain.value, now); MUSIC.out.gain.linearRampToValueAtTime(.32, now + 2.5);
+    musicBar(); MUSIC.timer = setInterval(musicBar, 8000);
+  } catch {}
+}
+function musicStop(){
+  clearInterval(MUSIC.timer); MUSIC.timer = null;
+  if (MUSIC.ctx && MUSIC.out){ const now = MUSIC.ctx.currentTime; MUSIC.out.gain.cancelScheduledValues(now); MUSIC.out.gain.setValueAtTime(MUSIC.out.gain.value, now); MUSIC.out.gain.linearRampToValueAtTime(0, now + 1.2); }
+}
+function musicDuck(speaking){ if (!MUSIC.ctx || !MUSIC.timer) return; const now = MUSIC.ctx.currentTime; MUSIC.out.gain.cancelScheduledValues(now); MUSIC.out.gain.setValueAtTime(MUSIC.out.gain.value, now); MUSIC.out.gain.linearRampToValueAtTime(speaking ? .2 : .32, now + .4); }
+
 function say(line, tok){
   return new Promise(res => {
     const c = CAST[line.wer] || CAST.lea, txt = cleanSpeech(line.text);
     const words = txt.split(/\s+/).length, est = words * 410 / V.rate + 700; let fin = false, t;
-    const done = () => { if (fin) return; fin = true; clearTimeout(t); setTalking(null); res(tok === V.tok); };
-    setTalking(line.wer);
-    if (V.muted || !window.speechSynthesis){ t = setTimeout(done, est); V.cur = {cancel(){ fin = true; clearTimeout(t); setTalking(null); res(false); }}; return; }
-    try { speechSynthesis.cancel(); } catch {}
-    const u = new SpeechSynthesisUtterance(txt); u.lang = "de-DE"; u.rate = c.rate * V.rate; u.pitch = c.pitch; const vo = voiceFor(c); if (vo) u.voice = vo;
-    u.onend = done; u.onerror = done; t = setTimeout(done, est * 2 + 3000);
-    V.cur = {cancel(){ fin = true; clearTimeout(t); try { speechSynthesis.cancel(); } catch {} setTalking(null); res(false); }};
-    speechSynthesis.speak(u);
+    const done = (ok = true) => { if (fin) return; fin = true; clearTimeout(t); setTalking(null); musicDuck(false); res(ok && tok === V.tok); };
+    setTalking(line.wer); musicDuck(true);
+    const browserVoice = () => {
+      if (V.muted || !window.speechSynthesis){ t = setTimeout(done, est); V.cur = {cancel(){ clearTimeout(t); done(false); }}; return; }
+      try { speechSynthesis.cancel(); } catch {}
+      const u = new SpeechSynthesisUtterance(txt); u.lang = "de-DE"; u.rate = c.rate * V.rate; u.pitch = c.pitch; const vo = voiceFor(c); if (vo) u.voice = vo;
+      u.onend = () => done(); u.onerror = () => done(); t = setTimeout(done, est * 2 + 3000);
+      V.cur = {cancel(){ try { speechSynthesis.cancel(); } catch {} done(false); }};
+      speechSynthesis.speak(u);
+    };
+    if (V.muted){ browserVoice(); return; }
+    // 1) Claude-Stimmen
+    if (TTSC){
+      V.cur = {cancel(){ TTSC.stop().catch(() => {}); done(false); }};
+      TTSC.speak([{text:txt, voice:VOICE_CLAUDE[line.wer] || "airy", language:"de"}], {rate:V.rate, language:"de"}).then(() => done()).catch(e => {
+        if (fin) return;
+        if (e?.code === "not_granted"){ TTSC = null; V.muted = true; renderVideo(); t = setTimeout(done, est); return; } // Vorlesen abgeschaltet → nur Untertitel
+        if (["unavailable","no_gesture"].includes(e?.code)){ if (e.code === "unavailable") TTSC = null; browserVoice(); }
+        else if (e?.code === "stopped") done(false); else browserVoice();
+      });
+      return;
+    }
+    // 2) Google-KI-Stimmen (installierte App mit Gemini-Schlüssel)
+    if (useGeminiTTS() || ttsMem.has("tts-" + hashStr(line.wer + "|" + txt))){
+      let cancelled = false; V.cur = {cancel(){ cancelled = true; done(false); }};
+      Promise.race([geminiSpeech(txt, line.wer), new Promise(r => setTimeout(() => r(null), 9000))]).then(blob => {
+        if (cancelled || fin) return;
+        if (!blob){ browserVoice(); return; }
+        const a = new Audio(URL.createObjectURL(blob)); a.playbackRate = V.rate; a.preservesPitch = true;
+        a.onended = () => { URL.revokeObjectURL(a.src); done(); }; a.onerror = () => browserVoice();
+        V.cur = {cancel(){ a.pause(); URL.revokeObjectURL(a.src); done(false); }};
+        t = setTimeout(done, est * 3 + 5000);
+        a.play().catch(() => { clearTimeout(t); browserVoice(); });
+      });
+      return;
+    }
+    // 3) Stimme des Geräts
+    browserVoice();
   });
 }
 function setTalking(who){ $$("#video .char").forEach(el => { el.classList.toggle("talking", el.dataset.who === who); if (who) el.classList.toggle("on", el.dataset.who === who); }); const b = $("#vbubble"); if (b){ b.classList.toggle("l", who === "lea"); b.classList.toggle("r", who === "max"); } }
@@ -1726,6 +1849,7 @@ function boardHtml(sc){
   if (sc.typ === "vergleich"){ const L = sc.links || {}, R = sc.rechts || {}, nl = (L.punkte || []).length;
     return `<div class="vh">${sym}<h3>${esc(sc.ueberschrift || "")}</h3></div><div class="vcmp"><div><b>${esc(L.titel || "")}</b><ul class="vb">${(L.punkte || []).map((p, i) => `<li class="${i < n ? "in" : ""}">${esc(p)}</li>`).join("")}</ul></div><div><b>${esc(R.titel || "")}</b><ul class="vb">${(R.punkte || []).map((p, i) => `<li class="${i + nl < n ? "in" : ""}">${esc(p)}</li>`).join("")}</ul></div></div>`; }
   if (sc.typ === "merksatz") return `<div class="vh">${ic("bulb", 30, 1.8)}<h3>${esc(sc.ueberschrift || "Merk dir das!")}</h3></div><div class="vmerk ${n > 0 || V.line >= 0 ? "in" : ""}">${md((sc.stichpunkte || []).join("\n"))}</div>`;
+  if (sc.typ === "aufgabe") return `<div class="vh">${ic("file", 30, 1.8)}<h3><span class="vtag">Aufgabe vom Blatt</span></h3></div><div class="vq">${esc(sc.ueberschrift || "")}</div>${(sc.stichpunkte || []).length ? bl(sc.stichpunkte) : ""}${V.cd ? `<div class="vcd">${V.cd}</div>` : ""}<div class="vans ${V.ans ? "in" : ""}">${ic("check", 22, 2.8)}${esc(sc.antwort || "")}</div>`;
   if (sc.typ === "frage") return `<div class="vh">${ic("quiz", 30, 1.8)}<h3>Kontrollfrage</h3></div><div class="vq">${esc(sc.ueberschrift || "")}</div>${(sc.stichpunkte || []).length ? `<ul class="vb opts">${sc.stichpunkte.map(p => `<li class="in">${esc(p)}</li>`).join("")}</ul>` : ""}${V.cd ? `<div class="vcd">${V.cd}</div>` : ""}<div class="vans ${V.ans ? "in" : ""}">${ic("check", 22, 2.8)}${esc(sc.antwort || "")}</div>`;
   return `<div class="vh">${sc.typ === "beispiel" ? ic("user", 30, 1.8) : sym}<h3>${sc.typ === "beispiel" ? `<span class="vtag">Beispiel</span>` : ""}${esc(sc.ueberschrift || "")}</h3></div>${bl(sc.stichpunkte)}`;
 }
@@ -1734,7 +1858,7 @@ function renderVideo(){
   const line = V.line >= 0 ? (sc.dialog || [])[V.line] : null;
   $("#video").innerHTML = `<div class="vwrap" style="--c:${V.color}">
     <div class="vtop"><div class="vprog">${s.szenen.map((x, i) => `<i class="${i < V.idx || V.end ? "done" : i === V.idx ? "cur" : ""}"></i>`).join("")}</div><button class="vbtn" data-act="vClose" aria-label="Schließen">${ic("x", 22)}</button></div>
-    <div class="vtitlebar">${esc(s.titel || "")}</div>
+    <div class="vtitlebar">${esc(s.titel || "")}${sc.kapitel && !V.end ? ` <span style="opacity:.7">· ${esc(sc.kapitel)}</span>` : ""}</div>
     <div class="vstage">
       <div class="board" id="vboard">${V.end ? `<div class="vtitle"><div class="vsym big">${ic("check", 44, 2.4)}</div><h2>Geschafft!</h2><p>Du hast das Video zu „${esc(s.titel)}“ gesehen.</p><div class="vend"><button class="vpill" data-act="vRestart">${ic("refresh", 18)}Nochmal</button><button class="vpill" data-act="vClose">Weiter lernen</button></div></div>` : boardHtml(sc)}</div>
       <div class="cast"><div class="char ${line?.wer === "lea" ? "on" : ""}" data-who="lea">${charSVG("lea")}<span>Frau Lea</span></div>
@@ -1743,12 +1867,12 @@ function renderVideo(){
       ${!V.playing && !V.end ? `<button class="vplay" data-act="vPlay" aria-label="Abspielen">${ic("play", 42, 0)}</button>` : ""}
     </div>
     <div class="vctl"><button class="vbtn" data-act="vPrev" aria-label="Zurück">${ic("back", 22)}</button><button class="vbtn main" data-act="${V.playing ? "vPause" : "vPlay"}" aria-label="Play/Pause">${ic(V.playing ? "pause" : "play", 24, V.playing ? 2.4 : 0)}</button><button class="vbtn" data-act="vNext" aria-label="Weiter">${ic("chev", 22)}</button>
-      <span class="sp"></span><button class="vbtn txt" data-act="vRate">${V.rate}×</button><button class="vbtn ${V.subs ? "on" : ""}" data-act="vSubs" aria-label="Untertitel">${ic("chat", 20)}</button><button class="vbtn ${V.muted ? "" : "on"}" data-act="vMute" aria-label="Ton">${ic(V.muted ? "mute" : "sound", 20)}</button></div></div>`;
+      <span class="sp"></span><button class="vbtn txt" data-act="vRate">${V.rate}×</button><button class="vbtn ${V.subs ? "on" : ""}" data-act="vSubs" aria-label="Untertitel">${ic("chat", 20)}</button><button class="vbtn ${MUSIC.on ? "on" : ""}" data-act="vMusic" aria-label="Konzentrationsmusik">${ic("music", 20)}</button><button class="vbtn ${V.muted ? "" : "on"}" data-act="vMute" aria-label="Ton">${ic(V.muted ? "mute" : "sound", 20)}</button></div></div>`;
   if (line && V.playing) setTalking(line.wer);
 }
-function stopVideo(){ V.tok++; V.cur?.cancel?.(); try { speechSynthesis.cancel(); } catch {} V.playing = false; V.cd = 0; }
+function stopVideo(){ V.tok++; V.cur?.cancel?.(); try { speechSynthesis.cancel(); } catch {} try { TTSC?.stop().catch(() => {}); } catch {} V.playing = false; V.cd = 0; musicStop(); }
 async function runVideo(){
-  const tok = ++V.tok; V.playing = true; V.end = false;
+  const tok = ++V.tok; V.playing = true; V.end = false; musicStart();
   while (V.idx < V.s.szenen.length){
     const sc = V.s.szenen[V.idx], lines = sc.dialog || [], nb = bulletsOf(sc);
     V.rev = 0; V.line = -1; V.ans = false; V.cd = 0; renderVideo();
@@ -1756,19 +1880,20 @@ async function runVideo(){
     for (let k = 0; k < lines.length; k++){
       V.line = k; V.rev = Math.max(V.rev, Math.ceil((k + 1) / lines.length * nb)); renderVideo();
       if (!(await say(lines[k], tok))) return;
-      if (sc.typ === "frage" && k === 0){ for (let c = 5; c > 0; c--){ V.cd = c; renderVideo(); if (!(await sleepTok(1000, tok))) return; } V.cd = 0; V.ans = true; renderVideo(); }
+      if ((sc.typ === "frage" || sc.typ === "aufgabe") && k === 0){ for (let c = sc.typ === "frage" ? 5 : 3; c > 0; c--){ V.cd = c; renderVideo(); if (!(await sleepTok(1000, tok))) return; } V.cd = 0; V.ans = true; renderVideo(); }
       if (!(await sleepTok(250, tok))) return;
     }
     V.ans = true; V.rev = nb; V.line = -1; renderVideo();
     if (!(await sleepTok(800, tok))) return;
     V.idx++;
   }
-  V.playing = false; V.end = true; V.idx = V.s.szenen.length - 1; renderVideo();
+  V.playing = false; V.end = true; V.idx = V.s.szenen.length - 1; musicStop(); renderVideo();
 }
 function openVideo(script, color){
   if (!script?.szenen?.length) return;
   Object.assign(V, {s:script, idx:0, playing:false, line:-1, rev:0, ans:false, cd:0, end:false, color:color || "#4f46e5"});
   const el = $("#video"); el.hidden = false; renderVideo(); document.body.style.overflow = "hidden";
+  prefetchVoices(script);
 }
 function closeVideo(){ stopVideo(); $("#video").hidden = true; $("#video").innerHTML = ""; document.body.style.overflow = ""; }
 function videoPrompt(thema, ctx){
@@ -1785,7 +1910,7 @@ Antworte NUR mit JSON: {"titel":"Videotitel","szenen":[{"typ":"titel|punkt|beisp
 }
 function cleanScript(r){
   const sz = (r?.szenen || []).filter(x => x && (x.ueberschrift || x.dialog?.length)).map(x => ({
-    typ:["titel","punkt","beispiel","vergleich","merksatz","frage"].includes(x.typ) ? x.typ : "punkt", ueberschrift:String(x.ueberschrift || ""),
+    typ:["titel","punkt","beispiel","vergleich","merksatz","frage","aufgabe"].includes(x.typ) ? x.typ : "punkt", kapitel:String(x.kapitel || ""), ueberschrift:String(x.ueberschrift || ""),
     stichpunkte:(x.stichpunkte || []).map(String).filter(Boolean).slice(0, 6), links:x.links, rechts:x.rechts, antwort:String(x.antwort || ""), symbol:String(x.symbol || ""),
     dialog:(x.dialog || []).filter(d => d && d.text).map(d => ({wer:d.wer === "max" ? "max" : "lea", text:String(d.text)})).slice(0, 6)}));
   if (sz.length < 2) throw {code:"invalid_json"};
@@ -1796,17 +1921,27 @@ async function makeVideo(key, thema, ctx){
   try { return cleanScript(await AI.json(videoPrompt(thema, ctx))); }
   finally { delete S.live[key]; }
 }
-async function topicVideo(it, i, play = true){
-  const t = it.themen[i], key = `vid-${it.id}-${i}`; if (S.live[key] !== undefined) return;
-  if (t.video){ if (play) openVideo(t.video, subj(it.subjectId).color); return; }
-  try { t.video = await makeVideo(key, `${t.titel} (${t.was})`, testContext(it, 15000)); await saveItem(it); if (play && S.openId === it.id) openVideo(t.video, subj(it.subjectId).color); }
-  catch (e){ const m = aiErr(e); if (m && play) toast(m); }
-  refresh();
+function videoPromptAll(it){
+  return `${TUTOR}\n\n${testContext(it, 40000)}\nSchreib das Drehbuch für EIN zusammenhängendes ERKLÄRVIDEO (ca. 5–8 Minuten), das ALLES abdeckt und beantwortet, was die Lehrerin für diesen Test erwartet – auf Grundlage der Blätter und Notizen aus der Mappe. Ziel: Lukas versteht alles, merkt es sich und schreibt eine 1.
+Im Video erklären zwei Figuren an einer Tafel im Dialog: "lea" = Frau Lea, freundliche, witzige Berufsschullehrerin; "max" = Max, ein Azubi wie Lukas, der nachfragt und Dinge mit eigenen Worten wiederholt.
+Aufbau:
+1. "titel": Einstieg – worum geht es im Test, Überblick über alle Themen (als Stichpunkte).
+2. Für JEDES angesagte Thema der Reihe nach 1–3 Szenen ("punkt", "beispiel", "vergleich"), jeweils mit "kapitel" = Thementitel. Nutze die Inhalte, Begriffe und Beispiele von den Blättern aus der Mappe.
+3. Für die wichtigsten Aufgaben/Fragen von den Blättern eine Szene "aufgabe": "ueberschrift" = die Aufgabe (kurz), erste Dialogzeile = Frau Lea liest sie vor, danach die Lösung erklärt; "antwort" = Musterlösung in 1–2 Sätzen.
+4. "merksatz": eine Eselsbrücke pro schwierigem Thema (insgesamt 2–3).
+5. 2–3 Szenen "frage": typische Testfragen, Frau Lea fragt Lukas direkt, dann Auflösung; mit "antwort".
+6. Zum Schluss "punkt" mit Überschrift "Das musst du für eine 1 können": die 5 wichtigsten Punkte.
+Regeln: insgesamt 14–22 Szenen. Tafeltext kurz (Stichpunkte max. 7 Wörter, Fachbegriffe **fett**). Dialog natürlich, locker, kurze Sätze (max. 2 Sätze pro Zeile), 2–4 Zeilen pro Szene, fachlich 100 % korrekt, nichts erfinden, was nicht zum Stoff gehört.
+Antworte NUR mit JSON: {"titel":"Videotitel","szenen":[{"typ":"titel|punkt|beispiel|vergleich|aufgabe|merksatz|frage","kapitel":"Thema","ueberschrift":"...","stichpunkte":["..."],"links":{"titel":"","punkte":[""]},"rechts":{"titel":"","punkte":[""]},"antwort":"bei aufgabe/frage","symbol":"vertrag|geld|waage|paket|haus|person|firma|idee|warnung|haken|uhr|buch|rechner|ziel|computer|netzwerk|liste","dialog":[{"wer":"lea|max","text":"..."}]}]}`;
 }
-async function autoTopicVideos(it){
-  const idx = (it.themen || []).map((t, i) => i).filter(i => !it.themen[i].video);
-  let next = 0; const w = async () => { while (next < idx.length){ await topicVideo(it, idx[next++], false); } };
-  await Promise.all([w(), w()]);
+async function testVideo(it, play = true){
+  const key = "vid-" + it.id; if (S.live[key] !== undefined){ if (play) toast("Das Video wird gerade erstellt…"); return; }
+  if (it.video && !it.videoStale){ if (play) openVideo(it.video, subj(it.subjectId).color); return; }
+  if (!(it.goals || "").trim()){ toast("Schreib erst rein, was die Lehrerin gesagt hat"); return; }
+  S.live[key] = ""; refresh();
+  try { it.video = cleanScript(await AI.json(videoPromptAll(it))); it.videoStale = false; await saveItem(it); if (play && S.openId === it.id) openVideo(it.video, subj(it.subjectId).color); else if (S.openId === it.id) toast("Dein Erklärvideo ist fertig"); }
+  catch (e){ const m = aiErr(e); if (m) toast(m); }
+  delete S.live[key]; refresh();
 }
 async function docVideo(it){
   const key = "vid-" + it.id; if (S.live[key] !== undefined) return;
@@ -2232,7 +2367,8 @@ const A = {
   fillStyle: async el => { const it = item(S.openId); it.fillStyle = el.dataset.s; await saveItem(it); renderDetail(); },
   binderPdf: () => binderPdfDialog(),
   newTest: () => { closeModal(); newTest(); },
-  tVideo: el => { const it = item(S.openId); topicVideo(it, +el.dataset.i, true); },
+  tVideoAll: () => { const it = item(S.openId); flushSaves(); testVideo(it, true); },
+  tVideoNew: () => { const it = item(S.openId); it.videoStale = true; testVideo(it, true); },
   vPlay: () => { if (V.end){ V.idx = 0; V.end = false; } runVideo(); },
   vPause: () => { stopVideo(); V.line = -1; renderVideo(); },
   vNext: () => { const was = V.playing; stopVideo(); V.end = false; V.idx = Math.min(V.s.szenen.length - 1, V.idx + 1); V.line = -1; V.rev = 0; V.ans = false; if (was) runVideo(); else renderVideo(); },
@@ -2240,8 +2376,9 @@ const A = {
   vRestart: () => { V.idx = 0; V.end = false; runVideo(); },
   vClose: () => closeVideo(),
   vRate: () => { V.rate = V.rate === 1 ? 1.25 : V.rate === 1.25 ? 1.5 : V.rate === 1.5 ? .85 : 1; setMeta("vrate", V.rate); renderVideo(); },
+  vMusic: () => { MUSIC.on = !MUSIC.on; setMeta("vmusic", MUSIC.on); if (MUSIC.on && V.playing) musicStart(); else musicStop(); toast(MUSIC.on ? "Konzentrationsmusik an" : "Musik aus"); renderVideo(); },
   vSubs: () => { V.subs = !V.subs; renderVideo(); },
-  vMute: () => { V.muted = !V.muted; if (V.muted) try { speechSynthesis.cancel(); } catch {} renderVideo(); },
+  vMute: () => { V.muted = !V.muted; if (V.muted){ try { speechSynthesis.cancel(); } catch {} try { TTSC?.stop().catch(() => {}); } catch {} } renderVideo(); },
   tPlan: () => { const it = item(S.openId); flushSaves(); aiTestPlan(it); },
   tExplain: el => { const it = item(S.openId), i = +el.dataset.i, t = it.themen[i]; if (t.explain){ S.topicOpen = S.topicOpen === i ? -1 : i; renderDetail(); } else { S.topicOpen = i; aiTopicExplain(it, i); } },
   tExplainAgain: el => { const it = item(S.openId), i = +el.dataset.i; it.themen[i].explain = ""; S.topicOpen = i; aiTopicExplain(it, i); },
@@ -2366,7 +2503,7 @@ async function init(){
     S.timetable = (await getMeta("timetable")) || [];
     S.lastBackup = (await getMeta("lastBackup")) || 0;
     const prefs = await getMeta("prefs"); if (prefs){ S.lastMode = prefs.lastMode; S.autoAi = prefs.autoAi; S.autoFill = prefs.autoFill; }
-    S.me = (await getMeta("me")) || S.me; V.rate = (await getMeta("vrate")) || 1;
+    S.me = (await getMeta("me")) || S.me; V.rate = (await getMeta("vrate")) || 1; const vm = await getMeta("vmusic"); if (vm === false) MUSIC.on = false;
     S.gkey = (await getMeta("gkey")) || ""; S.gmodel = (await getMeta("gmodel")) || ""; S.hideInstall = !!(await getMeta("hideInstall"));
     if (!(await getMeta("seeded"))){ seed(); for (const s of S.subjects) await store.put("subjects", s); await saveTT(); await setMeta("seeded", 1); }
   } catch (e){ console.error(e); if (!S.subjects.length) seed(); }
