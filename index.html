@@ -354,6 +354,8 @@ details.x summary::-webkit-details-marker{display:none}
 textarea.lined{margin-top:8px;min-height:130px;line-height:28px;padding-top:4px;background-color:var(--surface);background-image:repeating-linear-gradient(transparent,transparent 27px,color-mix(in srgb,var(--accent) 22%,transparent) 27px,color-mix(in srgb,var(--accent) 22%,transparent) 28px);background-attachment:local;border-color:var(--border);font-family:Caveat,cursive;font-size:21px}
 textarea.bhtext{margin-top:6px;min-height:150px;font-size:15px;line-height:1.55}
 .sumsheet{margin-top:4px}
+.sumacts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.sumacts .btn{min-width:0;padding:0 6px}
 .sumtop{background:color-mix(in srgb,#ffd84a 22%,var(--surface));border:1px solid color-mix(in srgb,#e0a800 35%,transparent);border-radius:12px;padding:12px 14px;margin-bottom:14px}
 .sumtop ol{margin:6px 0 0;padding-left:20px}.sumtop li{margin:3px 0}
 .sumsec{padding:12px 0;border-top:1px solid var(--border)}
@@ -849,7 +851,7 @@ function vBinder(){
   const tsts = inT.filter(i => i.type === "test" && (f === "all" || f === "test")).sort((a, b) => (a.examDate || "9999").localeCompare(b.examDate || "9999"));
   let any = false;
   if (tsts.length){ any = true; h += `<div class="h-sec" style="margin-top:18px"><h2 style="font-size:14px">Tests</h2></div><div class="card">${tsts.map(testRow).join("")}</div>`;
-    h += `<div class="h-sec" style="margin-top:14px"><h2 style="font-size:14px">Zusammenfassungen: Das kommt im Test</h2></div><div class="card">${tsts.map(t => `<div class="row"><button class="main" data-act="open" data-id="${t.id}" style="text-align:left"><div class="t">${esc(t.title || "Test")}</div><div class="s">${t.summarySheet ? `Zusammenfassung · ${t.summarySheet.abschnitte.length} Themen in Stichpunkten` : S.live["sum-" + t.id] !== undefined ? "Zusammenfassung wird erstellt…" : "Zusammenfassung noch nicht erstellt"}</div></button>${t.summarySheet ? `<button class="btn sm primary" data-act="sumPdf" data-id="${t.id}">${ic("download", 14)}PDF</button>` : `<button class="btn sm soft" data-act="sumMakeFor" data-id="${t.id}">Erstellen</button>`}</div>`).join("")}</div>`; }
+    h += `<div class="h-sec" style="margin-top:14px"><h2 style="font-size:14px">Zusammenfassungen: Das kommt im Test</h2></div><div class="card">${tsts.map(t => `<div class="row"><button class="main" data-act="open" data-id="${t.id}" style="text-align:left"><div class="t">${esc(t.title || "Test")}</div><div class="s">${t.summarySheet ? `Zusammenfassung · ${t.summarySheet.abschnitte.length} Themen in Stichpunkten` : S.live["sum-" + t.id] !== undefined ? "Zusammenfassung wird erstellt…" : "Zusammenfassung noch nicht erstellt"}</div></button>${t.summarySheet ? `<button class="btn sm" data-act="sumTxt" data-id="${t.id}">${ic("download", 14)}Text</button><button class="btn sm primary" data-act="sumPdf" data-id="${t.id}">${ic("download", 14)}PDF</button>` : `<button class="btn sm soft" data-act="sumMakeFor" data-id="${t.id}">Erstellen</button>`}</div>`).join("")}</div>`; }
   const showT = f === "all" ? tasks.filter(t => !t.done) : tasks;
   if (showT.length){ any = true; h += `<div class="h-sec" style="margin-top:18px"><h2 style="font-size:14px">To-dos</h2></div><div class="card">${showT.map(t => taskRow(t, false)).join("")}</div>`; }
   if (ds.length){ any = true; h += `<div class="h-sec" style="margin-top:18px"><h2 style="font-size:14px">Dokumente</h2></div><div class="card">${ds.map(docRow).join("")}</div>`; }
@@ -2380,13 +2382,25 @@ Antworte NUR mit JSON: {"titel":"Zusammenfassung: …","abschnitte":[{"thema":".
 }
 function summaryCard(it){
   const Z = it.summarySheet, busy = S.live["sum-" + it.id] !== undefined;
-  let h = `<div class="h-sec"><h2>Zusammenfassung: Das kommt dran</h2><span class="sp"></span>${Z ? `<button class="btn sm primary" data-act="sumPdf" data-id="${it.id}">${ic("download", 15)}PDF</button>` : ""}</div>`;
+  let h = `<div class="h-sec"><h2>Zusammenfassung: Das kommt dran</h2></div>${Z && !busy ? `<div class="sumacts"><button class="btn sm" data-act="sumCopy" data-id="${it.id}">Kopieren</button><button class="btn sm" data-act="sumTxt" data-id="${it.id}">${ic("download", 15)}Als Text</button><button class="btn sm primary" data-act="sumPdf" data-id="${it.id}">${ic("download", 15)}Als PDF</button></div>` : ""}`;
   if (busy) return h + `<div class="card toolpanel">${thinking("Zusammenfassung wird erstellt")}</div>`;
   if (!Z) return h + `<div class="card toolpanel"><p style="margin:0 0 12px">Alles, was im Test drankommt, in Stichpunkten – mit Merksätzen und Bildern deiner Blätter. Zum Ansehen und als PDF.</p><button class="btn primary" data-act="sumMake">${ic("list", 17)}Zusammenfassung erstellen</button></div>`;
   h += `<div class="card pad sumsheet">${Z.top?.length ? `<div class="sumtop"><b>Für eine 1 musst du können:</b><ol>${Z.top.map(t => `<li>${md(t).replace(/^<p>|<\/p>$/g, "")}</li>`).join("")}</ol></div>` : ""}
     ${Z.abschnitte.map((a, i) => { const d = a.bild && item(a.bild); return `<div class="sumsec"><h4>${i + 1}. ${esc(a.thema)}</h4><div class="sumrow"><ul>${a.stichpunkte.map(p => `<li>${md(p).replace(/^<p>|<\/p>$/g, "")}</li>`).join("")}</ul>${d?.thumb ? `<button class="sumimg" data-act="open" data-id="${d.id}" title="${esc(d.title)}"><img src="${d.thumb}" alt=""><span>${esc(d.title)}</span></button>` : ""}</div>${a.merke ? `<div class="summerk">${ic("bulb", 15)}<span>${md(a.merke).replace(/^<p>|<\/p>$/g, "")}</span></div>` : ""}</div>`; }).join("")}</div>
     <button class="btn sm ghost" style="margin-top:6px" data-act="sumMake">${ic("refresh", 14)}Neu erstellen (z. B. nach neuen Blättern)</button>`;
   return h;
+}
+function summaryText(it){
+  const Z = it.summarySheet, s = subj(it.subjectId), plain = t => String(t || "").replace(/\*\*(.+?)\*\*/g, "$1");
+  let t = `${plain(Z.titel)}\n${s.short}${s.full ? " – " + s.full : ""}${it.examDate ? " · Test am " + new Date(it.examDate + "T12:00").toLocaleDateString("de-DE") : ""} · ${S.me.name}, ${S.me.klasse}\n`;
+  if (Z.top?.length) t += `\nFÜR EINE 1 MUSST DU KÖNNEN:\n${Z.top.map((x, i) => `${i + 1}. ${plain(x)}`).join("\n")}\n`;
+  Z.abschnitte.forEach((a, i) => { t += `\n${i + 1}. ${plain(a.thema).toUpperCase()}\n${a.stichpunkte.map(p => "• " + plain(p)).join("\n")}\n${a.merke ? "→ Merke: " + plain(a.merke) + "\n" : ""}`; });
+  return t;
+}
+async function exportSummaryText(it){
+  if (!it.summarySheet) return;
+  const name = `${String(it.summarySheet.titel).replace(/\*\*/g, "").replace(/[\\/:*?"<>|]+/g, "").slice(0, 80)}.txt`;
+  if (await saveFile(name, new Blob([summaryText(it)], {type:"text/plain;charset=utf-8"}))) toast("Text gespeichert");
 }
 async function exportSummaryPdf(it){
   const Z = it.summarySheet; if (!Z) return;
@@ -2851,6 +2865,8 @@ const A = {
   binderPdf: () => binderPdfDialog(),
   sumMake: () => { const it = item(S.openId); flushSaves(); aiTestSummary(it); },
   sumMakeFor: el => { const it = item(el.dataset.id); if (it) aiTestSummary(it); },
+  sumTxt: el => { const it = item(el.dataset.id || S.openId); if (it) exportSummaryText(it); },
+  sumCopy: async el => { const it = item(el.dataset.id || S.openId); if (!it?.summarySheet) return; try { await navigator.clipboard.writeText(summaryText(it)); toast("Stichpunkte kopiert"); } catch { exportSummaryText(it); } },
   sumPdf: el => { const it = item(el.dataset.id || S.openId); if (it) exportSummaryPdf(it); },
   bhNew: el => newBericht(el.dataset.w),
   bhPick: () => { openModal(`<h3>Woche nachtragen</h3><label class="f">Ein Tag aus der Woche<input type="date" id="bhPickD" value="${today()}"></label><div class="mact"><button class="btn" data-act="mclose">Abbrechen</button><button class="btn primary" data-act="bhPickGo">Öffnen</button></div>`); },
