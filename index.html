@@ -353,6 +353,19 @@ details.x summary::-webkit-details-marker{display:none}
 .hrs input{width:58px;padding:6px 8px;text-align:center}
 textarea.lined{margin-top:8px;min-height:130px;line-height:28px;padding-top:4px;background-color:var(--surface);background-image:repeating-linear-gradient(transparent,transparent 27px,color-mix(in srgb,var(--accent) 22%,transparent) 27px,color-mix(in srgb,var(--accent) 22%,transparent) 28px);background-attachment:local;border-color:var(--border);font-family:Caveat,cursive;font-size:21px}
 textarea.bhtext{margin-top:6px;min-height:150px;font-size:15px;line-height:1.55}
+.sumsheet{margin-top:4px}
+.sumtop{background:color-mix(in srgb,#ffd84a 22%,var(--surface));border:1px solid color-mix(in srgb,#e0a800 35%,transparent);border-radius:12px;padding:12px 14px;margin-bottom:14px}
+.sumtop ol{margin:6px 0 0;padding-left:20px}.sumtop li{margin:3px 0}
+.sumsec{padding:12px 0;border-top:1px solid var(--border)}
+.sumsec:first-of-type{border-top:0}
+.sumsec h4{font:800 16px var(--display);border-left:4px solid var(--accent);padding-left:8px}
+.sumrow{display:flex;gap:12px;align-items:flex-start}
+.sumrow ul{flex:1;margin:8px 0 0;padding-left:20px;font-size:14.5px}.sumrow li{margin:4px 0}
+.sumimg{width:86px;flex:none;margin-top:8px;text-align:center;font-size:10.5px;color:var(--muted)}
+.sumimg img{width:100%;border-radius:8px;border:1px solid var(--border);display:block;margin-bottom:3px}
+.sumimg span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.summerk{display:flex;gap:8px;align-items:flex-start;margin-top:8px;padding:9px 12px;border-radius:10px;background:var(--ok-bg);color:var(--ok);font-weight:600;font-size:14px}
+.summerk .ic{margin-top:2px}
 .transcript{white-space:pre-wrap;font-size:13.5px;line-height:1.55;padding:14px;max-height:420px;overflow:auto;margin-top:6px}
 
 /* ---------- Modal / Toast ---------- */
@@ -835,7 +848,8 @@ function vBinder(){
   const ns = inT.filter(i => i.type === "note" && (f === "all" || f === "note")).sort((a, b) => b.updated - a.updated);
   const tsts = inT.filter(i => i.type === "test" && (f === "all" || f === "test")).sort((a, b) => (a.examDate || "9999").localeCompare(b.examDate || "9999"));
   let any = false;
-  if (tsts.length){ any = true; h += `<div class="h-sec" style="margin-top:18px"><h2 style="font-size:14px">Tests</h2></div><div class="card">${tsts.map(testRow).join("")}</div>`; }
+  if (tsts.length){ any = true; h += `<div class="h-sec" style="margin-top:18px"><h2 style="font-size:14px">Tests</h2></div><div class="card">${tsts.map(testRow).join("")}</div>`;
+    h += `<div class="h-sec" style="margin-top:14px"><h2 style="font-size:14px">Zusammenfassungen: Das kommt im Test</h2></div><div class="card">${tsts.map(t => `<div class="row"><button class="main" data-act="open" data-id="${t.id}" style="text-align:left"><div class="t">${esc(t.title || "Test")}</div><div class="s">${t.summarySheet ? `Zusammenfassung · ${t.summarySheet.abschnitte.length} Themen in Stichpunkten` : S.live["sum-" + t.id] !== undefined ? "Zusammenfassung wird erstellt…" : "Zusammenfassung noch nicht erstellt"}</div></button>${t.summarySheet ? `<button class="btn sm primary" data-act="sumPdf" data-id="${t.id}">${ic("download", 14)}PDF</button>` : `<button class="btn sm soft" data-act="sumMakeFor" data-id="${t.id}">Erstellen</button>`}</div>`).join("")}</div>`; }
   const showT = f === "all" ? tasks.filter(t => !t.done) : tasks;
   if (showT.length){ any = true; h += `<div class="h-sec" style="margin-top:18px"><h2 style="font-size:14px">To-dos</h2></div><div class="card">${showT.map(t => taskRow(t, false)).join("")}</div>`; }
   if (ds.length){ any = true; h += `<div class="h-sec" style="margin-top:18px"><h2 style="font-size:14px">Dokumente</h2></div><div class="card">${ds.map(docRow).join("")}</div>`; }
@@ -1567,7 +1581,7 @@ function testContext(it, max = 30000){
   const rel = S.items.filter(i => i.subjectId === it.subjectId && i.id !== it.id && (i.type === "sheet" || i.type === "note") && (!it.topicId || !i.topicId || i.topicId === it.topicId)).sort((a, b) => b.updated - a.updated);
   let size = 0, parts = [];
   for (const d of rel){
-    let p = `--- ${d.type === "note" ? "Notiz" : (KIND[d.kind] || KIND.blatt).l}: ${d.title}\n`;
+    let p = `--- [${d.id}] ${d.type === "note" ? "Notiz" : (KIND[d.kind] || KIND.blatt).l}: ${d.title}\n`;
     if (d.summary) p += `Zusammenfassung: ${d.summary}\n`;
     if (d.questions?.length) p += `Aufgaben auf diesem Blatt:\n${d.questions.map(q => `${q.nr}) ${q.frage}`).join("\n").slice(0, 3000)}\n`;
     const body = d.transcript || d.text || ""; if (body) p += body.slice(0, 5000) + "\n";
@@ -1588,7 +1602,7 @@ Antworte NUR mit JSON: {"themen":[{"titel":"kurzer Thementitel","was":"1 Satz: w
     it.plan = String(r?.plan || "");
     if (!it.title) it.title = `${subj(it.subjectId).short}-Test`;
     await saveItem(it);
-    it.videoStale = true; setTimeout(() => testVideo(it, false), 50); // automatisch EIN Gesamtvideo zum ganzen Teststoff
+    it.videoStale = true; it.summaryStale = true; setTimeout(() => { aiTestSummary(it, true); testVideo(it, false); }, 50); // automatisch EIN Gesamtvideo zum ganzen Teststoff
   } catch (e){ const m = aiErr(e); if (m) toast(m); }
   delete S.live[key]; renderDetail();
 }
@@ -1676,6 +1690,7 @@ function testDetail(it){
         ${open && (t.explain || live) ? `<div class="fb" style="background:var(--surface2)"><div class="ai-out" id="live-${key}">${liveOrSaved(key, t.explain)}</div>${t.explain && !live ? `<button class="btn sm ghost" style="margin-top:6px" data-act="tExplainAgain" data-i="${i}">${ic("refresh", 14)}Anders erklären</button>` : ""}</div>` : ""}</div>`; }).join("");
     if (it.plan) h += `<details class="x" ${S.planOpen ? "open" : ""}><summary data-act="planToggle">${ic("chev", 16)}Lernplan bis zum Test</summary><div class="card pad ai-out">${md(it.plan)}</div></details>`;
   }
+  if (th.length || it.summarySheet) h += summaryCard(it);
   // Probetest
   const T = it.test, mk = S.live["mk-" + it.id] !== undefined, gr = S.live["gr-" + it.id] !== undefined;
   h += `<div class="h-sec"><h2>Probetest</h2><span class="sp"></span>${(it.history || []).length ? `<span class="muted">${it.history.length}× gemacht · zuletzt Note ${it.history[it.history.length - 1].note}</span>` : ""}</div>`;
@@ -2346,6 +2361,79 @@ function bhPdfDialog(){
     ${list.length ? `<button class="opt-row" data-act="bhPdfGo" data-m="last"><span class="ib">${ic("calendar", 20)}</span><span><b>Nur die letzte Woche</b><small>Nr. ${bhNr(list[list.length - 1])}</small></span></button>` : ""}`);
 }
 
+/* ---------- Test-Zusammenfassung (Stichpunkte + Bilder) ---------- */
+async function aiTestSummary(it, silent = false){
+  const key = "sum-" + it.id; if (S.live[key] !== undefined) return;
+  if (!(it.goals || "").trim()){ if (!silent) toast("Schreib erst rein, was die Lehrerin gesagt hat"); return; }
+  S.live[key] = ""; refresh();
+  try {
+    const r = await AI.json(`${testContext(it, 40000)}
+Erstelle eine kompakte ZUSAMMENFASSUNG zum Ausdrucken: „Das kommt im Test dran“ – auf Grundlage der Angaben der Lehrerin und der Unterlagen aus der Mappe. Nur Stoff, der wirklich drankommt, fachlich korrekt, nichts erfinden.
+Pro angesagtem Thema ein Abschnitt mit 3–8 Stichpunkten (je max. 14 Wörter, Fachbegriffe **fett**, Definitionen/Formeln/Schemata als Stichpunkt), einem Merksatz und – falls ein Blatt aus den Unterlagen gut dazu passt – dessen ID in eckigen Klammern aus der Liste (z. B. "abc123") als "bild".
+Antworte NUR mit JSON: {"titel":"Zusammenfassung: …","abschnitte":[{"thema":"...","stichpunkte":["..."],"merke":"1 Satz","bild":"ID oder leer"}],"top":["die 5 wichtigsten Punkte für eine 1"]}`);
+    const ab = (r?.abschnitte || []).filter(a => a && a.thema).map(a => ({thema:String(a.thema), stichpunkte:(a.stichpunkte || []).map(String).filter(Boolean).slice(0, 10), merke:String(a.merke || ""), bild: item(String(a.bild || "").replace(/[\[\]]/g, ""))?.type === "sheet" ? String(a.bild).replace(/[\[\]]/g, "") : ""}));
+    if (!ab.length) throw {code:"invalid_json"};
+    it.summarySheet = {titel:String(r.titel || "Zusammenfassung: " + (it.title || "Test")), abschnitte:ab, top:(r.top || []).map(String).slice(0, 6), created:Date.now()}; it.summaryStale = false;
+    await saveItem(it); if (!silent) toast("Zusammenfassung fertig");
+  } catch (e){ const m = aiErr(e); if (m && !silent) toast(m); }
+  delete S.live[key]; refresh();
+}
+function summaryCard(it){
+  const Z = it.summarySheet, busy = S.live["sum-" + it.id] !== undefined;
+  let h = `<div class="h-sec"><h2>Zusammenfassung: Das kommt dran</h2><span class="sp"></span>${Z ? `<button class="btn sm primary" data-act="sumPdf" data-id="${it.id}">${ic("download", 15)}PDF</button>` : ""}</div>`;
+  if (busy) return h + `<div class="card toolpanel">${thinking("Zusammenfassung wird erstellt")}</div>`;
+  if (!Z) return h + `<div class="card toolpanel"><p style="margin:0 0 12px">Alles, was im Test drankommt, in Stichpunkten – mit Merksätzen und Bildern deiner Blätter. Zum Ansehen und als PDF.</p><button class="btn primary" data-act="sumMake">${ic("list", 17)}Zusammenfassung erstellen</button></div>`;
+  h += `<div class="card pad sumsheet">${Z.top?.length ? `<div class="sumtop"><b>Für eine 1 musst du können:</b><ol>${Z.top.map(t => `<li>${md(t).replace(/^<p>|<\/p>$/g, "")}</li>`).join("")}</ol></div>` : ""}
+    ${Z.abschnitte.map((a, i) => { const d = a.bild && item(a.bild); return `<div class="sumsec"><h4>${i + 1}. ${esc(a.thema)}</h4><div class="sumrow"><ul>${a.stichpunkte.map(p => `<li>${md(p).replace(/^<p>|<\/p>$/g, "")}</li>`).join("")}</ul>${d?.thumb ? `<button class="sumimg" data-act="open" data-id="${d.id}" title="${esc(d.title)}"><img src="${d.thumb}" alt=""><span>${esc(d.title)}</span></button>` : ""}</div>${a.merke ? `<div class="summerk">${ic("bulb", 15)}<span>${md(a.merke).replace(/^<p>|<\/p>$/g, "")}</span></div>` : ""}</div>`; }).join("")}</div>
+    <button class="btn sm ghost" style="margin-top:6px" data-act="sumMake">${ic("refresh", 14)}Neu erstellen (z. B. nach neuen Blättern)</button>`;
+  return h;
+}
+async function exportSummaryPdf(it){
+  const Z = it.summarySheet; if (!Z) return;
+  busy("Zusammenfassung wird als PDF erstellt…");
+  try {
+    await ensureJsPdf();
+    const {jsPDF} = window.jspdf, pdf = new jsPDF({unit:"mm", format:"a4", compress:true}), s = subj(it.subjectId), [cr, cg, cb] = hexRgb(s.color);
+    const L = 16, W = 178; let y = 0;
+    const strip = t => pdfSafe(String(t).replace(/\*\*(.+?)\*\*/g, "$1"));
+    const footer = () => { pdf.setFont("helvetica", "normal"); pdf.setFontSize(8); pdf.setTextColor(150); pdf.text(pdfSafe(`${s.short} · ${S.me.name} · ${S.me.klasse}`), L, 290); pdf.text(String(pdf.getNumberOfPages()), L + W, 290, {align:"right"}); pdf.setTextColor(20); };
+    const need = h => { if (y + h > 280){ footer(); pdf.addPage(); y = 18; } };
+    // Kopf
+    pdf.setFillColor(cr, cg, cb); pdf.rect(0, 0, 210, 30, "F"); pdf.setTextColor(255);
+    pdf.setFont("helvetica", "bold"); pdf.setFontSize(18); pdf.text(pdf.splitTextToSize(strip(Z.titel), W)[0], L, 14);
+    pdf.setFont("helvetica", "normal"); pdf.setFontSize(10); pdf.text(pdfSafe(`${s.short}${s.full ? " – " + s.full : ""}${it.examDate ? " · Test am " + new Date(it.examDate + "T12:00").toLocaleDateString("de-DE") : ""} · ${S.me.name}, ${S.me.klasse}`), L, 23);
+    pdf.setTextColor(20); y = 40;
+    if (Z.top?.length){
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(10.5);
+      const lines = Z.top.map((t, i) => pdf.splitTextToSize(`${i + 1}. ${strip(t)}`, W - 10)); const hh = 10 + lines.reduce((a, l) => a + l.length * 4.8, 0);
+      pdf.setFillColor(255, 247, 214); pdf.setDrawColor(230, 190, 80); pdf.roundedRect(L, y, W, hh, 2, 2, "FD");
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(11.5); pdf.text("Für eine 1 musst du können:", L + 4, y + 6.5);
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(10.5); let yy = y + 12; for (const l of lines){ pdf.text(l, L + 5, yy); yy += l.length * 4.8; }
+      y += hh + 8;
+    }
+    for (const [i, a] of Z.abschnitte.entries()){
+      const d = a.bild && item(a.bild), imgW = d?.thumb ? 42 : 0, textW = W - (imgW ? imgW + 6 : 0) - 6;
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(10.5);
+      const bl = a.stichpunkte.map(p => pdf.splitTextToSize(strip(p), textW));
+      const textH = bl.reduce((s2, l) => s2 + l.length * 4.8 + 1.2, 0), imgH = imgW ? imgW * 1.3 + 5 : 0;
+      need(12 + Math.min(Math.max(textH, imgH), 120));
+      pdf.setFillColor(cr, cg, cb); pdf.rect(L, y - 4.5, 1.6, 6, "F");
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(13); pdf.text(strip(`${i + 1}. ${a.thema}`), L + 4, y); y += 7;
+      const top = y;
+      if (imgW){ try { const img = new Image(); img.src = d.thumb; await img.decode(); const h2 = imgW * img.height / img.width; pdf.addImage(d.thumb, "JPEG", L + W - imgW, top, imgW, Math.min(h2, 70)); pdf.setDrawColor(200); pdf.rect(L + W - imgW, top, imgW, Math.min(h2, 70)); pdf.setFontSize(7.5); pdf.setTextColor(120); pdf.text(pdf.splitTextToSize(strip(d.title), imgW), L + W - imgW, top + Math.min(h2, 70) + 3.5); pdf.setTextColor(20); } catch {} }
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(10.5);
+      for (const l of bl){ need(l.length * 4.8 + 2); pdf.setFillColor(cr, cg, cb); pdf.circle(L + 3, y - 1.3, .8, "F"); pdf.text(l, L + 6, y); y += l.length * 4.8 + 1.2; }
+      if (imgW) y = Math.max(y, top + 78);
+      if (a.merke){ pdf.setFont("helvetica", "bold"); pdf.setFontSize(10); const ml = pdf.splitTextToSize("Merke: " + strip(a.merke), W - 10); need(ml.length * 4.6 + 6); pdf.setFillColor(236, 253, 243); pdf.roundedRect(L, y, W, ml.length * 4.6 + 4, 1.5, 1.5, "F"); pdf.setTextColor(20, 83, 45); pdf.text(ml, L + 4, y + 5); pdf.setTextColor(20); y += ml.length * 4.6 + 6; }
+      y += 6;
+    }
+    footer();
+    pdf.setProperties({title: strip(Z.titel), author: pdfSafe(S.me.name)});
+    const blob = pdf.output("blob"); unbusy();
+    if (await saveFile(`${strip(Z.titel).replace(/[\\/:*?"<>|]+/g, "").slice(0, 80)}.pdf`, blob)) toast("PDF gespeichert");
+  } catch (e){ console.error(e); unbusy(); toast("PDF konnte nicht erstellt werden"); }
+}
+
 /* ---------- Image processing ---------- */
 const canvasBlob = (c, q = .86) => new Promise(r => c.toBlob(r, "image/jpeg", q));
 function makeThumb(c){ const w = 300, s = w / c.width, t = document.createElement("canvas"); t.width = w; t.height = Math.round(c.height * s); t.getContext("2d").drawImage(c, 0, 0, t.width, t.height); return t.toDataURL("image/jpeg", .7); }
@@ -2761,6 +2849,9 @@ const A = {
   fillToggle: async () => { const it = item(S.openId); it.fillOn = it.fillOn === false; S.fillEdit = false; await saveItem(it); renderDetail(); },
   fillStyle: async el => { const it = item(S.openId); it.fillStyle = el.dataset.s; await saveItem(it); renderDetail(); },
   binderPdf: () => binderPdfDialog(),
+  sumMake: () => { const it = item(S.openId); flushSaves(); aiTestSummary(it); },
+  sumMakeFor: el => { const it = item(el.dataset.id); if (it) aiTestSummary(it); },
+  sumPdf: el => { const it = item(el.dataset.id || S.openId); if (it) exportSummaryPdf(it); },
   bhNew: el => newBericht(el.dataset.w),
   bhPick: () => { openModal(`<h3>Woche nachtragen</h3><label class="f">Ein Tag aus der Woche<input type="date" id="bhPickD" value="${today()}"></label><div class="mact"><button class="btn" data-act="mclose">Abbrechen</button><button class="btn primary" data-act="bhPickGo">Öffnen</button></div>`); },
   bhPickGo: () => { const v = $("#bhPickD").value; if (!v) return; closeModal(); newBericht(isoOf(mondayOf(v + "T12:00"))); },
