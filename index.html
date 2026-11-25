@@ -368,6 +368,14 @@ textarea.bhtext{margin-top:6px;min-height:150px;font-size:15px;line-height:1.55}
 .sumimg span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .summerk{display:flex;gap:8px;align-items:flex-start;margin-top:8px;padding:9px 12px;border-radius:10px;background:var(--ok-bg);color:var(--ok);font-weight:600;font-size:14px}
 .summerk .ic{margin-top:2px}
+.sumtbl{width:100%;border-collapse:separate;border-spacing:0;margin-top:8px;font-size:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.sumtbl th{background:color-mix(in srgb,var(--accent) 14%,var(--surface));text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:7px 10px;font-weight:800}
+.sumtbl td{padding:7px 10px;border-top:1px solid var(--border);vertical-align:top;line-height:1.35}
+.sumtbl td:first-child{font-weight:700;width:38%;color:var(--text)}
+.sumtbl tr:nth-child(even) td{background:color-mix(in srgb,var(--border) 25%,transparent)}
+.sumtbl.top td:first-child{width:28px;text-align:center;color:var(--muted)}
+.sumtop .sumtbl{background:var(--surface)}
+.sumrow .sumtbl{flex:1}
 .transcript{white-space:pre-wrap;font-size:13.5px;line-height:1.55;padding:14px;max-height:420px;overflow:auto;margin-top:6px}
 
 /* ---------- Modal / Toast ---------- */
@@ -851,7 +859,7 @@ function vBinder(){
   const tsts = inT.filter(i => i.type === "test" && (f === "all" || f === "test")).sort((a, b) => (a.examDate || "9999").localeCompare(b.examDate || "9999"));
   let any = false;
   if (tsts.length){ any = true; h += `<div class="h-sec" style="margin-top:18px"><h2 style="font-size:14px">Tests</h2></div><div class="card">${tsts.map(testRow).join("")}</div>`;
-    h += `<div class="h-sec" style="margin-top:14px"><h2 style="font-size:14px">Zusammenfassungen: Das kommt im Test</h2></div><div class="card">${tsts.map(t => `<div class="row"><button class="main" data-act="open" data-id="${t.id}" style="text-align:left"><div class="t">${esc(t.title || "Test")}</div><div class="s">${t.summarySheet ? `Zusammenfassung · ${t.summarySheet.abschnitte.length} Themen in Stichpunkten` : S.live["sum-" + t.id] !== undefined ? "Zusammenfassung wird erstellt…" : "Zusammenfassung noch nicht erstellt"}</div></button>${t.summarySheet ? `<button class="btn sm" data-act="sumTxt" data-id="${t.id}">${ic("download", 14)}Text</button><button class="btn sm primary" data-act="sumPdf" data-id="${t.id}">${ic("download", 14)}PDF</button>` : `<button class="btn sm soft" data-act="sumMakeFor" data-id="${t.id}">Erstellen</button>`}</div>`).join("")}</div>`; }
+    h += `<div class="h-sec" style="margin-top:14px"><h2 style="font-size:14px">Zusammenfassungen: Das kommt im Test</h2></div><div class="card">${tsts.map(t => `<div class="row"><button class="main" data-act="open" data-id="${t.id}" style="text-align:left"><div class="t">${esc(t.title || "Test")}</div><div class="s">${t.summarySheet ? `Zusammenfassung · ${t.summarySheet.abschnitte.length} Themen als Tabelle` : S.live["sum-" + t.id] !== undefined ? "Zusammenfassung wird erstellt…" : "Zusammenfassung noch nicht erstellt"}</div></button>${t.summarySheet ? `<button class="btn sm" data-act="sumTxt" data-id="${t.id}">${ic("download", 14)}Text</button><button class="btn sm primary" data-act="sumPdf" data-id="${t.id}">${ic("download", 14)}PDF</button>` : `<button class="btn sm soft" data-act="sumMakeFor" data-id="${t.id}">Erstellen</button>`}</div>`).join("")}</div>`; }
   const showT = f === "all" ? tasks.filter(t => !t.done) : tasks;
   if (showT.length){ any = true; h += `<div class="h-sec" style="margin-top:18px"><h2 style="font-size:14px">To-dos</h2></div><div class="card">${showT.map(t => taskRow(t, false)).join("")}</div>`; }
   if (ds.length){ any = true; h += `<div class="h-sec" style="margin-top:18px"><h2 style="font-size:14px">Dokumente</h2></div><div class="card">${ds.map(docRow).join("")}</div>`; }
@@ -2371,9 +2379,9 @@ async function aiTestSummary(it, silent = false){
   try {
     const r = await AI.json(`${testContext(it, 40000)}
 Erstelle eine kompakte ZUSAMMENFASSUNG zum Ausdrucken: „Das kommt im Test dran“ – auf Grundlage der Angaben der Lehrerin und der Unterlagen aus der Mappe. Nur Stoff, der wirklich drankommt, fachlich korrekt, nichts erfinden.
-Pro angesagtem Thema ein Abschnitt mit 3–8 Stichpunkten (je max. 14 Wörter, Fachbegriffe **fett**, Definitionen/Formeln/Schemata als Stichpunkt), einem Merksatz und – falls ein Blatt aus den Unterlagen gut dazu passt – dessen ID in eckigen Klammern aus der Liste (z. B. "abc123") als "bild".
-Antworte NUR mit JSON: {"titel":"Zusammenfassung: …","abschnitte":[{"thema":"...","stichpunkte":["..."],"merke":"1 Satz","bild":"ID oder leer"}],"top":["die 5 wichtigsten Punkte für eine 1"]}`);
-    const ab = (r?.abschnitte || []).filter(a => a && a.thema).map(a => ({thema:String(a.thema), stichpunkte:(a.stichpunkte || []).map(String).filter(Boolean).slice(0, 10), merke:String(a.merke || ""), bild: item(String(a.bild || "").replace(/[\[\]]/g, ""))?.type === "sheet" ? String(a.bild).replace(/[\[\]]/g, "") : ""}));
+WICHTIG: SEHR WENIG TEXT, wie ein Spickzettel/Tabelle. Pro angesagtem Thema ein Abschnitt als TABELLE mit 3–8 Zeilen: "begriff" (Begriff/Formel/Stichwort, max. 4 Wörter) und "info" (Erklärung in max. 10 Wörtern, keine ganzen Sätze, kein Fülltext). Dazu ein kurzer Merksatz (max. 12 Wörter) und – falls ein Blatt aus den Unterlagen gut dazu passt – dessen ID in eckigen Klammern aus der Liste (z. B. "abc123") als "bild".
+Antworte NUR mit JSON: {"titel":"Zusammenfassung: …","abschnitte":[{"thema":"...","zeilen":[{"begriff":"...","info":"..."}],"merke":"kurz","bild":"ID oder leer"}],"top":["die 5 wichtigsten Punkte für eine 1, je max. 8 Wörter"]}`);
+    const ab = (r?.abschnitte || []).filter(a => a && a.thema).map(a => ({thema:String(a.thema), zeilen:(a.zeilen || []).filter(z => z && (z.begriff || z.info)).map(z => ({begriff:String(z.begriff || ""), info:String(z.info || "")})).slice(0, 10), stichpunkte:(a.stichpunkte || []).map(String).filter(Boolean).slice(0, 10), merke:String(a.merke || ""), bild: item(String(a.bild || "").replace(/[\[\]]/g, ""))?.type === "sheet" ? String(a.bild).replace(/[\[\]]/g, "") : ""})).filter(a => a.zeilen.length || a.stichpunkte.length);
     if (!ab.length) throw {code:"invalid_json"};
     it.summarySheet = {titel:String(r.titel || "Zusammenfassung: " + (it.title || "Test")), abschnitte:ab, top:(r.top || []).map(String).slice(0, 6), created:Date.now()}; it.summaryStale = false;
     await saveItem(it); if (!silent) toast("Zusammenfassung fertig");
@@ -2384,17 +2392,28 @@ function summaryCard(it){
   const Z = it.summarySheet, busy = S.live["sum-" + it.id] !== undefined;
   let h = `<div class="h-sec"><h2>Zusammenfassung: Das kommt dran</h2></div>${Z && !busy ? `<div class="sumacts"><button class="btn sm" data-act="sumCopy" data-id="${it.id}">Kopieren</button><button class="btn sm" data-act="sumTxt" data-id="${it.id}">${ic("download", 15)}Als Text</button><button class="btn sm primary" data-act="sumPdf" data-id="${it.id}">${ic("download", 15)}Als PDF</button></div>` : ""}`;
   if (busy) return h + `<div class="card toolpanel">${thinking("Zusammenfassung wird erstellt")}</div>`;
-  if (!Z) return h + `<div class="card toolpanel"><p style="margin:0 0 12px">Alles, was im Test drankommt, in Stichpunkten – mit Merksätzen und Bildern deiner Blätter. Zum Ansehen und als PDF.</p><button class="btn primary" data-act="sumMake">${ic("list", 17)}Zusammenfassung erstellen</button></div>`;
-  h += `<div class="card pad sumsheet">${Z.top?.length ? `<div class="sumtop"><b>Für eine 1 musst du können:</b><ol>${Z.top.map(t => `<li>${md(t).replace(/^<p>|<\/p>$/g, "")}</li>`).join("")}</ol></div>` : ""}
-    ${Z.abschnitte.map((a, i) => { const d = a.bild && item(a.bild); return `<div class="sumsec"><h4>${i + 1}. ${esc(a.thema)}</h4><div class="sumrow"><ul>${a.stichpunkte.map(p => `<li>${md(p).replace(/^<p>|<\/p>$/g, "")}</li>`).join("")}</ul>${d?.thumb ? `<button class="sumimg" data-act="open" data-id="${d.id}" title="${esc(d.title)}"><img src="${d.thumb}" alt=""><span>${esc(d.title)}</span></button>` : ""}</div>${a.merke ? `<div class="summerk">${ic("bulb", 15)}<span>${md(a.merke).replace(/^<p>|<\/p>$/g, "")}</span></div>` : ""}</div>`; }).join("")}</div>
+  if (!Z) return h + `<div class="card toolpanel"><p style="margin:0 0 12px">Alles, was im Test drankommt, als übersichtliche Tabelle – mit Merksätzen und Bildern deiner Blätter. Zum Ansehen und als PDF.</p><button class="btn primary" data-act="sumMake">${ic("list", 17)}Zusammenfassung erstellen</button></div>`;
+  const il = t => md(t).replace(/^<p>|<\/p>$/g, "");
+  h += `<div class="card pad sumsheet">${Z.top?.length ? `<div class="sumtop"><b>Für eine 1 musst du können:</b><table class="sumtbl top">${Z.top.map((t, k) => `<tr><td>${k + 1}</td><td>${il(t)}</td></tr>`).join("")}</table></div>` : ""}
+    ${Z.abschnitte.map((a, i) => { const d = a.bild && item(a.bild); return `<div class="sumsec"><h4>${i + 1}. ${esc(a.thema)}</h4><div class="sumrow"><table class="sumtbl"><tr><th>Begriff</th><th>Kurz erklärt</th></tr>${sumRows(a).map(z => `<tr><td>${il(z.begriff)}</td><td>${il(z.info)}</td></tr>`).join("")}</table>${d?.thumb ? `<button class="sumimg" data-act="open" data-id="${d.id}" title="${esc(d.title)}"><img src="${d.thumb}" alt=""><span>${esc(d.title)}</span></button>` : ""}</div>${a.merke ? `<div class="summerk">${ic("bulb", 15)}<span>${md(a.merke).replace(/^<p>|<\/p>$/g, "")}</span></div>` : ""}</div>`; }).join("")}</div>
     <button class="btn sm ghost" style="margin-top:6px" data-act="sumMake">${ic("refresh", 14)}Neu erstellen (z. B. nach neuen Blättern)</button>`;
   return h;
+}
+// Tabellenzeilen eines Abschnitts (ältere Zusammenfassungen mit Stichpunkten werden automatisch umgewandelt)
+function sumRows(a){
+  if (a.zeilen?.length) return a.zeilen;
+  return (a.stichpunkte || []).map(p => {
+    const s = String(p).trim();
+    let m = s.match(/^\*\*(.+?)\*\*\s*[:–\-=]?\s*(.*)$/); if (m) return {begriff:m[1], info:m[2]};
+    m = s.match(/^(.{2,40}?)\s*(?::|\s–\s|\s-\s|\s=\s)\s*(.+)$/); if (m) return {begriff:m[1], info:m[2]};
+    return {begriff:"", info:s};
+  });
 }
 function summaryText(it){
   const Z = it.summarySheet, s = subj(it.subjectId), plain = t => String(t || "").replace(/\*\*(.+?)\*\*/g, "$1");
   let t = `${plain(Z.titel)}\n${s.short}${s.full ? " – " + s.full : ""}${it.examDate ? " · Test am " + new Date(it.examDate + "T12:00").toLocaleDateString("de-DE") : ""} · ${S.me.name}, ${S.me.klasse}\n`;
   if (Z.top?.length) t += `\nFÜR EINE 1 MUSST DU KÖNNEN:\n${Z.top.map((x, i) => `${i + 1}. ${plain(x)}`).join("\n")}\n`;
-  Z.abschnitte.forEach((a, i) => { t += `\n${i + 1}. ${plain(a.thema).toUpperCase()}\n${a.stichpunkte.map(p => "• " + plain(p)).join("\n")}\n${a.merke ? "→ Merke: " + plain(a.merke) + "\n" : ""}`; });
+  Z.abschnitte.forEach((a, i) => { const rows = sumRows(a), w = Math.min(24, Math.max(0, ...rows.map(z => plain(z.begriff).length))); t += `\n${i + 1}. ${plain(a.thema).toUpperCase()}\n${rows.map(z => z.begriff ? `${plain(z.begriff).padEnd(w)} | ${plain(z.info)}` : `• ${plain(z.info)}`).join("\n")}\n${a.merke ? "→ Merke: " + plain(a.merke) + "\n" : ""}`; });
   return t;
 }
 async function exportSummaryText(it){
@@ -2426,17 +2445,27 @@ async function exportSummaryPdf(it){
       y += hh + 8;
     }
     for (const [i, a] of Z.abschnitte.entries()){
-      const d = a.bild && item(a.bild), imgW = d?.thumb ? 42 : 0, textW = W - (imgW ? imgW + 6 : 0) - 6;
-      pdf.setFont("helvetica", "normal"); pdf.setFontSize(10.5);
-      const bl = a.stichpunkte.map(p => pdf.splitTextToSize(strip(p), textW));
-      const textH = bl.reduce((s2, l) => s2 + l.length * 4.8 + 1.2, 0), imgH = imgW ? imgW * 1.3 + 5 : 0;
+      const d = a.bild && item(a.bild), imgW = d?.thumb ? 42 : 0, tblW = W - (imgW ? imgW + 6 : 0), c1 = tblW * .38, c2 = tblW - c1, LH = 4.6, PADY = 2.2;
+      const rows = sumRows(a).map(z => { pdf.setFont("helvetica", "bold"); pdf.setFontSize(10); const b = z.begriff ? pdf.splitTextToSize(strip(z.begriff), c1 - 4) : []; pdf.setFont("helvetica", "normal"); const n = pdf.splitTextToSize(strip(z.info), (z.begriff ? c2 : tblW) - 4); return {b, n, full:!z.begriff, h:Math.max(b.length, n.length, 1) * LH + PADY * 2}; });
+      const textH = 7 + rows.reduce((s2, r) => s2 + r.h, 0), imgH = imgW ? imgW * 1.3 + 5 : 0;
       need(12 + Math.min(Math.max(textH, imgH), 120));
       pdf.setFillColor(cr, cg, cb); pdf.rect(L, y - 4.5, 1.6, 6, "F");
       pdf.setFont("helvetica", "bold"); pdf.setFontSize(13); pdf.text(strip(`${i + 1}. ${a.thema}`), L + 4, y); y += 7;
       const top = y;
       if (imgW){ try { const img = new Image(); img.src = d.thumb; await img.decode(); const h2 = imgW * img.height / img.width; pdf.addImage(d.thumb, "JPEG", L + W - imgW, top, imgW, Math.min(h2, 70)); pdf.setDrawColor(200); pdf.rect(L + W - imgW, top, imgW, Math.min(h2, 70)); pdf.setFontSize(7.5); pdf.setTextColor(120); pdf.text(pdf.splitTextToSize(strip(d.title), imgW), L + W - imgW, top + Math.min(h2, 70) + 3.5); pdf.setTextColor(20); } catch {} }
-      pdf.setFont("helvetica", "normal"); pdf.setFontSize(10.5);
-      for (const l of bl){ need(l.length * 4.8 + 2); pdf.setFillColor(cr, cg, cb); pdf.circle(L + 3, y - 1.3, .8, "F"); pdf.text(l, L + 6, y); y += l.length * 4.8 + 1.2; }
+      // Tabelle: Kopfzeile + Zeilen
+      const head = () => { pdf.setFillColor(Math.round(255 - (255 - cr) * .18), Math.round(255 - (255 - cg) * .18), Math.round(255 - (255 - cb) * .18)); pdf.setDrawColor(210); pdf.rect(L, y, tblW, 7, "FD"); pdf.setFont("helvetica", "bold"); pdf.setFontSize(8.5); pdf.setTextColor(90); pdf.text("BEGRIFF", L + 2, y + 4.8); pdf.text("KURZ ERKLÄRT", L + c1 + 2, y + 4.8); pdf.setTextColor(20); y += 7; };
+      head();
+      rows.forEach((r, k) => {
+        if (y + r.h > 280){ footer(); pdf.addPage(); y = 18; head(); }
+        if (k % 2) { pdf.setFillColor(246, 247, 249); pdf.rect(L, y, tblW, r.h, "F"); }
+        pdf.setDrawColor(210); pdf.rect(L, y, tblW, r.h); if (!r.full) pdf.line(L + c1, y, L + c1, y + r.h);
+        pdf.setFontSize(10);
+        if (r.full){ pdf.setFont("helvetica", "normal"); pdf.text(r.n, L + 2, y + PADY + 3.4); }
+        else { pdf.setFont("helvetica", "bold"); pdf.text(r.b, L + 2, y + PADY + 3.4); pdf.setFont("helvetica", "normal"); pdf.text(r.n, L + c1 + 2, y + PADY + 3.4); }
+        y += r.h;
+      });
+      y += 3;
       if (imgW) y = Math.max(y, top + 78);
       if (a.merke){ pdf.setFont("helvetica", "bold"); pdf.setFontSize(10); const ml = pdf.splitTextToSize("Merke: " + strip(a.merke), W - 10); need(ml.length * 4.6 + 6); pdf.setFillColor(236, 253, 243); pdf.roundedRect(L, y, W, ml.length * 4.6 + 4, 1.5, 1.5, "F"); pdf.setTextColor(20, 83, 45); pdf.text(ml, L + 4, y + 5); pdf.setTextColor(20); y += ml.length * 4.6 + 6; }
       y += 6;
