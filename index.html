@@ -137,7 +137,8 @@ button.row:hover{background:var(--surface2)}
 .done .t{text-decoration:line-through;color:var(--faint)}
 label.f{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-top:14px}
 label.f>input,label.f>select,label.f>textarea{margin-top:6px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.grid2>.btn{min-width:0;padding:0 10px;overflow:hidden;text-overflow:ellipsis}
 .notice{display:flex;gap:12px;align-items:center;padding:14px;border-radius:var(--r);background:var(--accent-bg);color:var(--text);margin-top:14px}
 .notice .ic{color:var(--accent)}
 .notice small{display:block;color:var(--muted)}
@@ -336,6 +337,11 @@ details.x summary::-webkit-details-marker{display:none}
 .vcard{display:flex;align-items:center;gap:12px;margin-top:14px;padding:14px;border-radius:var(--r);background:linear-gradient(135deg,color-mix(in srgb,var(--c) 22%,var(--surface)),var(--surface));border:1px solid var(--border)}
 .vct{width:52px;height:52px;border-radius:16px;background:var(--c);color:#fff;display:grid;place-items:center;flex:none;padding-left:3px}
 .vcard b{display:block}.vcard small{display:block;color:var(--muted);font-size:12.5px;line-height:1.35;margin-top:2px}
+.sdot{display:grid;place-items:center;color:var(--ok)}
+.sdot.busy{color:var(--accent);animation:sp 1s linear infinite}
+.sdot.err{color:var(--bad)}
+.qrbox{background:#fff;border-radius:14px;padding:12px;margin:14px auto 0;max-width:280px}
+.qrbox svg{display:block;width:100%;height:auto}
 .transcript{white-space:pre-wrap;font-size:13.5px;line-height:1.55;padding:14px;max-height:420px;overflow:auto;margin-top:6px}
 
 /* ---------- Modal / Toast ---------- */
@@ -529,7 +535,7 @@ function seed(){
 }
 const saveTT = () => setMeta("timetable", S.timetable);
 const saveTimers = {};
-function saveItemSoon(it){ clearTimeout(saveTimers[it.id]); saveTimers[it.id] = setTimeout(() => { store.put("items", it).catch(() => toast("Speichern fehlgeschlagen")); delete saveTimers[it.id]; }, 350); }
+function saveItemSoon(it){ it.updated = Date.now(); clearTimeout(saveTimers[it.id]); saveTimers[it.id] = setTimeout(() => { store.put("items", it).catch(() => toast("Speichern fehlgeschlagen")); delete saveTimers[it.id]; }, 350); }
 function flushSaves(){ for (const id in saveTimers){ clearTimeout(saveTimers[id]); const it = item(id); if (it) store.put("items", it).catch(() => {}); delete saveTimers[id]; } }
 async function saveItem(it){ it.updated = Date.now(); await store.put("items", it); persistOnce(); }
 function ctxSubject(){ return S.view === "subjects" && S.subjectId ? S.subjectId : null; }
@@ -684,7 +690,7 @@ function renderShell(){
     <div class="slabel" style="padding-top:12px">KI</div>
     <div style="padding:0 10px;font-size:13px" class="muted">${AI.on ? `<span style="color:var(--ok)">●</span> aktiv${SAMPLE ? " (Claude)" : " (Gemini)"}` : `<button class="btn sm soft" data-act="go" data-v="more">KI einrichten</button>`}</div>`;
   const v = S.view;
-  $("#appbarIn").innerHTML = `<div class="ttl mobbrand"><img src="icon-192.png" alt="">Schul-Gehirn</div><div class="ttl deskttl">${v === "subjects" ? "Mappen" : ""}</div><div class="sp"></div>${v !== "search" ? `<button class="icbtn" data-act="go" data-v="search" aria-label="Suchen">${ic("search", 21)}</button>` : ""}`;
+  $("#appbarIn").innerHTML = `<div class="ttl mobbrand"><img src="icon-192.png" alt="">Schul-Gehirn</div><div class="ttl deskttl">${v === "subjects" ? "Mappen" : ""}</div><div class="sp"></div>${syncDot()}${v !== "search" ? `<button class="icbtn" data-act="go" data-v="search" aria-label="Suchen">${ic("search", 21)}</button>` : ""}`;
   $("#fab").innerHTML = ic("plus", 26, 2.4);
   $("#fab").style.display = ["home","subjects","tasks"].includes(v) ? "" : "none";
 }
@@ -912,6 +918,7 @@ function vMore(){
   const lb = S.lastBackup ? new Date(S.lastBackup).toLocaleDateString("de-DE") : "noch nie";
   const tt = [...S.timetable].sort((a, b) => a.day - b.day || a.start.localeCompare(b.start));
   return `<div class="pagehead"><h1>Mehr</h1><p>${S.items.length} Einträge · ${docs().length} Dokumente</p></div>
+  ${syncSection()}${installSection()}
   <div class="h-sec"><h2>Meine Angaben</h2></div><div class="card pad">
     <p class="muted" style="margin:0;font-size:13.5px">Wird beim Ausfüllen automatisch bei Name, Klasse und Datum eingetragen.</p>
     <div class="grid2"><label class="f">Name<input id="meName" value="${esc(S.me.name)}"></label><label class="f">Klasse<input id="meKlasse" value="${esc(S.me.klasse)}"></label></div></div>
@@ -1988,6 +1995,200 @@ async function docVideo(it){
   refresh();
 }
 
+/* ---------- Synchronisierung PC ↔ Handy über ein privates GitHub-Repo ---------- */
+const SYNC = {cfg:null, busy:false, last:0, err:"", timer:null, again:false, applying:false, deleted:{}, metaTs:{}};
+const SYNC_REPO = "schulgehirn-daten", SYNC_META = ["timetable", "me", "gkey"];
+const canSync = () => !window.claude && (location.protocol === "https:" || location.hostname === "localhost");
+// jede lokale Änderung merken → automatisch synchronisieren
+{
+  const _put = store.put, _del = store.del;
+  store.put = (s, v) => {
+    if (!SYNC.applying){
+      if (s === "subjects") v.updated = Date.now();
+      if (s === "items" || s === "subjects") syncSoon();
+      if (s === "meta" && SYNC_META.includes(v.k)){ SYNC.metaTs[v.k] = Date.now(); _put("meta", {k:"metaTs", v:SYNC.metaTs}).catch(() => {}); syncSoon(); }
+    }
+    return _put(s, v);
+  };
+  store.del = (s, k) => {
+    if (!SYNC.applying && (s === "items" || s === "subjects")){ SYNC.deleted[k] = Date.now(); _put("meta", {k:"deleted", v:SYNC.deleted}).catch(() => {}); syncSoon(); }
+    return _del(s, k);
+  };
+}
+function syncSoon(ms = 4000){ if (!SYNC.cfg) return; clearTimeout(SYNC.timer); SYNC.timer = setTimeout(() => syncNow(), ms); }
+const utf8ToB64 = s => { const b = new TextEncoder().encode(s); let bin = ""; for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(bin); };
+const b64ToUtf8 = b64 => new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\s/g, "")), c => c.charCodeAt(0)));
+async function ghJ(path, {method = "GET", body, token} = {}){
+  const res = await fetch("https://api.github.com" + path, {method, cache:"no-store", headers:{"Authorization":"Bearer " + (token || SYNC.cfg.token), "Accept":"application/vnd.github+json", "X-GitHub-Api-Version":"2022-11-28", ...(body ? {"Content-Type":"application/json"} : {})}, body: body ? JSON.stringify(body) : undefined});
+  if (!res.ok){ let m = ""; try { m = (await res.json()).message || ""; } catch {} throw {status:res.status, message:m}; }
+  return res.status === 204 ? null : res.json();
+}
+function syncErrText(e){
+  if (e?.status === 401) return "GitHub-Schlüssel ungültig oder abgelaufen";
+  if (e?.status === 403) return /rate limit/i.test(e.message || "") ? "GitHub-Limit erreicht – später nochmal" : "Keine Berechtigung (Schlüssel braucht das Häkchen „repo“)";
+  if (e?.status === 404) return "Daten-Repo nicht gefunden";
+  if (!navigator.onLine) return "Offline";
+  return "Synchronisieren fehlgeschlagen";
+}
+function localSnapshot(){
+  return {v:1, subjects:S.subjects, items:S.items, deleted:SYNC.deleted,
+    timetable:{ts:SYNC.metaTs.timetable || 0, val:S.timetable}, me:{ts:SYNC.metaTs.me || 0, val:S.me}, gkey:{ts:SYNC.metaTs.gkey || 0, val:S.gkey}};
+}
+function mergeDB(L, R){
+  if (!R) return L;
+  const del = {...(R.deleted || {})}; for (const [k, t] of Object.entries(L.deleted || {})) del[k] = Math.max(del[k] || 0, t);
+  const pick = (a, b, f) => { const m = new Map(); for (const x of [...(a || []), ...(b || [])]){ const o = m.get(x.id); if (!o || f(x) > f(o)) m.set(x.id, x); } return [...m.values()].filter(x => !(del[x.id] && del[x.id] >= f(x))); };
+  const newer = (a, b) => (b && (b.ts || 0) > (a?.ts || 0)) ? b : a;
+  return {v:1, deleted:del, subjects:pick(L.subjects, R.subjects, s => s.updated || s.created || 0), items:pick(L.items, R.items, i => i.updated || i.created || 0),
+    timetable:newer(L.timetable, R.timetable), me:newer(L.me, R.me), gkey:newer(L.gkey, R.gkey)};
+}
+async function applyMerged(M){
+  SYNC.applying = true;
+  try {
+    const before = new Map(S.items.map(i => [i.id, i.updated || 0]));
+    let changedOpen = false;
+    for (const it of M.items){ if ((before.get(it.id) ?? -1) !== (it.updated || 0)){ migrate(it); await store.put("items", it); if (it.id === S.openId) changedOpen = true; } }
+    const keep = new Set(M.items.map(i => i.id));
+    for (const it of S.items) if (!keep.has(it.id)){ for (const p of it.pages || []){ await store.del("blobs", p).catch(() => {}); dropUrl(p); } await store.del("items", it.id); if (it.id === S.openId) changedOpen = true; }
+    const ks = new Set(M.subjects.map(s => s.id));
+    for (const s of M.subjects) await store.put("subjects", s);
+    for (const s of S.subjects) if (!ks.has(s.id)) await store.del("subjects", s.id);
+    S.items = M.items; S.subjects = M.subjects.map(s => ({...s, topics:s.topics || []}));
+    if (M.timetable){ S.timetable = M.timetable.val || []; SYNC.metaTs.timetable = M.timetable.ts; await store.put("meta", {k:"timetable", v:S.timetable}); }
+    if (M.me?.val){ S.me = M.me.val; SYNC.metaTs.me = M.me.ts; await store.put("meta", {k:"me", v:S.me}); }
+    if (M.gkey){ S.gkey = M.gkey.val || ""; SYNC.metaTs.gkey = M.gkey.ts; await store.put("meta", {k:"gkey", v:S.gkey}); }
+    SYNC.deleted = M.deleted || {}; await store.put("meta", {k:"deleted", v:SYNC.deleted}); await store.put("meta", {k:"metaTs", v:SYNC.metaTs});
+    return changedOpen;
+  } finally { SYNC.applying = false; }
+}
+function setSyncStatus(){ const el = $("#syncDot"); if (el) el.outerHTML = syncDot(); const st = $("#syncState"); if (st) st.innerHTML = syncStateText(); }
+function syncDot(){
+  if (!SYNC.cfg) return `<span id="syncDot"></span>`;
+  const cls = SYNC.busy ? "busy" : SYNC.err ? "err" : "ok";
+  return `<button class="icbtn" id="syncDot" data-act="syncNow" aria-label="Synchronisieren" title="${esc(SYNC.err || (SYNC.last ? "Synchronisiert " + new Date(SYNC.last).toLocaleTimeString("de-DE", {hour:"2-digit", minute:"2-digit"}) : ""))}"><span class="sdot ${cls}">${ic("refresh", 18)}</span></button>`;
+}
+const syncStateText = () => SYNC.busy ? thinking("synchronisiere") : SYNC.err ? `<span style="color:var(--bad)">${esc(SYNC.err)}</span>` : SYNC.last ? `<span style="color:var(--ok)">●</span> Synchronisiert um ${new Date(SYNC.last).toLocaleTimeString("de-DE", {hour:"2-digit", minute:"2-digit"})}` : "Noch nicht synchronisiert";
+async function syncNow(manual = false){
+  if (!SYNC.cfg || !canSync()) return;
+  if (SYNC.busy){ SYNC.again = true; return; }
+  if (!navigator.onLine){ SYNC.err = "Offline – wird nachgeholt"; setSyncStatus(); return; }
+  SYNC.busy = true; SYNC.err = ""; setSyncStatus(); flushSaves();
+  const {owner:o, repo:r} = SYNC.cfg, base = `/repos/${o}/${r}`;
+  try {
+    for (let attempt = 0; attempt < 4; attempt++){
+      const ref = await ghJ(`${base}/git/ref/heads/main`), head = ref.object.sha;
+      const commit = await ghJ(`${base}/git/commits/${head}`);
+      const tree = await ghJ(`${base}/git/trees/${commit.tree.sha}?recursive=1`);
+      const files = new Map((tree.tree || []).filter(x => x.type === "blob").map(x => [x.path, x.sha]));
+      let remote = null, remoteSha = files.get("data/db.json") || null;
+      if (remoteSha){ const b = await ghJ(`${base}/git/blobs/${remoteSha}`); remote = JSON.parse(b64ToUtf8(b.content)); }
+      const merged = mergeDB(localSnapshot(), remote);
+      const openChanged = await applyMerged(merged);
+      // Bilder holen, die hier fehlen
+      const pages = [...new Set(merged.items.flatMap(i => i.pages || []))];
+      let got = 0;
+      for (const id of pages){
+        const path = `blobs/${id}.jpg`;
+        if (files.has(path) && !(await store.get("blobs", id).catch(() => null))){
+          const b = await ghJ(`${base}/git/blobs/${files.get(path)}`);
+          await store.put("blobs", {id, blob:dataURLToBlob("data:image/jpeg;base64," + b.content.replace(/\s/g, ""))}); got++;
+        }
+      }
+      // Bilder hochladen, die drüben fehlen + Datenbank, wenn geändert
+      const entries = [];
+      for (const id of pages){
+        const path = `blobs/${id}.jpg`; if (files.has(path)) continue;
+        const rec = await store.get("blobs", id).catch(() => null); if (!rec?.blob) continue;
+        const b64 = (await blobToDataURL(rec.blob)).split(",")[1];
+        const bl = await ghJ(`${base}/git/blobs`, {method:"POST", body:{content:b64, encoding:"base64"}});
+        entries.push({path, mode:"100644", type:"blob", sha:bl.sha});
+      }
+      const text = JSON.stringify(merged), remoteText = remote ? JSON.stringify(remote) : "";
+      if (text !== remoteText){ const bl = await ghJ(`${base}/git/blobs`, {method:"POST", body:{content:utf8ToB64(text), encoding:"base64"}}); entries.push({path:"data/db.json", mode:"100644", type:"blob", sha:bl.sha}); }
+      if (entries.length){
+        const nt = await ghJ(`${base}/git/trees`, {method:"POST", body:{base_tree:commit.tree.sha, tree:entries}});
+        const nc = await ghJ(`${base}/git/commits`, {method:"POST", body:{message:`Sync von ${isIOS ? "iPhone" : /android/i.test(navigator.userAgent) ? "Handy" : "PC"} – ${new Date().toLocaleString("de-DE")}`, tree:nt.sha, parents:[head]}});
+        try { await ghJ(`${base}/git/refs/heads/main`, {method:"PATCH", body:{sha:nc.sha, force:false}}); }
+        catch (e){ if (e.status === 422 || e.status === 409) continue; throw e; } // anderes Gerät war schneller → nochmal
+      }
+      SYNC.last = Date.now(); setMeta("syncLast", SYNC.last);
+      if (got || openChanged || remote) { if (S.openId && !document.activeElement?.closest?.("#detail")) renderDetail(); render(); }
+      if (manual) toast(got ? `Synchronisiert – ${got} Seite(n) geladen` : "Alles auf dem neuesten Stand");
+      break;
+    }
+  } catch (e){ console.warn("sync", e); SYNC.err = syncErrText(e); if (manual) toast(SYNC.err); }
+  finally { SYNC.busy = false; setSyncStatus(); if (SYNC.again){ SYNC.again = false; syncSoon(1500); } }
+}
+async function syncConnect(token){
+  token = (token || "").trim(); if (!token){ toast("Erst den GitHub-Schlüssel einfügen"); return; }
+  busy("Verbinde mit GitHub…");
+  try {
+    const me = await ghJ("/user", {token});
+    let repo;
+    try { repo = await ghJ(`/repos/${me.login}/${SYNC_REPO}`, {token}); }
+    catch (e){ if (e.status !== 404) throw e; busy("Lege dein privates Daten-Repo an…"); repo = await ghJ("/user/repos", {method:"POST", token, body:{name:SYNC_REPO, private:true, auto_init:true, description:"Schul-Gehirn – synchronisierte Daten (privat)"}}); await new Promise(r => setTimeout(r, 1500)); }
+    if (!repo.private) toast("Achtung: das Daten-Repo ist öffentlich – stell es auf GitHub auf privat");
+    SYNC.cfg = {token, owner:me.login, repo:SYNC_REPO}; await setMeta("sync", SYNC.cfg);
+    unbusy(); toast("Verbunden – synchronisiere…"); render(); await syncNow(true);
+  } catch (e){ unbusy(); toast(syncErrText(e)); }
+}
+const syncCode = () => "SG1." + btoa(JSON.stringify({t:SYNC.cfg.token, o:SYNC.cfg.owner, r:SYNC.cfg.repo})).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+function parseSyncCode(code){
+  const m = String(code || "").trim().match(/SG1\.([A-Za-z0-9_-]+)/); if (!m) return null;
+  try { let b = m[1].replace(/-/g, "+").replace(/_/g, "/"); while (b.length % 4) b += "="; const j = JSON.parse(atob(b)); return j.t ? j : null; } catch { return null; }
+}
+let qrReady = null;
+const ensureQR = () => qrReady || (qrReady = loadScript("https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js").catch(e => { qrReady = null; throw e; }));
+let jsqrReady = null;
+const ensureJsQR = () => jsqrReady || (jsqrReady = loadScript("https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js").catch(e => { jsqrReady = null; throw e; }));
+async function showPhoneQR(){
+  try { await ensureQR(); } catch { toast("QR-Code konnte nicht geladen werden"); return; }
+  const q = qrcode(0, "M"); q.addData(syncCode()); q.make();
+  openModal(`<h3>Handy verbinden</h3><p class="sub">So bekommt dein Handy denselben Stand:</p>
+    <ol class="muted" style="font-size:14px;line-height:1.6;padding-left:20px;margin:10px 0 0"><li>Auf dem Handy die Schul-Gehirn-App öffnen → <b>Mehr</b> → <b>PC & Handy synchronisieren</b></li><li><b>„QR-Code fotografieren“</b> tippen und diesen Code abfotografieren – fertig</li></ol>
+    <div class="qrbox">${q.createSvgTag({cellSize:6, margin:2, scalable:true})}</div>
+    <details class="x"><summary>${ic("chev", 16)}Stattdessen Code kopieren</summary><textarea readonly style="min-height:80px;font-size:12px" onclick="this.select()">${esc(syncCode())}</textarea><button class="btn sm" style="margin-top:6px" data-act="copySync">Code kopieren</button></details>
+    <p class="faint" style="font-size:12px;margin-top:10px">Der Code enthält deinen GitHub-Schlüssel – zeig ihn niemandem sonst.</p>
+    <div class="mact"><button class="btn primary" data-act="mclose">Fertig</button></div>`);
+}
+async function scanSyncPhoto(file){
+  busy("Lese QR-Code…");
+  try {
+    await ensureJsQR();
+    const bmp = await loadBitmap(file), s = Math.min(1, 1600 / Math.max(bmp.width, bmp.height)), c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s); const ctx = c.getContext("2d"); ctx.drawImage(bmp, 0, 0, c.width, c.height);
+    const res = jsQR(ctx.getImageData(0, 0, c.width, c.height).data, c.width, c.height, {inversionAttempts:"attemptBoth"});
+    unbusy();
+    const cfg = res && parseSyncCode(res.data);
+    if (!cfg){ toast("Kein gültiger Code erkannt – nochmal näher fotografieren"); return; }
+    await syncConnect(cfg.t);
+  } catch (e){ unbusy(); toast("QR-Code konnte nicht gelesen werden"); }
+}
+function syncSection(){
+  if (!canSync()) return `<div class="h-sec"><h2>PC & Handy synchronisieren</h2></div><div class="card pad"><p class="muted" style="margin:0;font-size:14px">Die Synchronisierung läuft in der installierten App: <a href="https://stein11111.github.io/schulgehirn/" target="_blank" rel="noopener">stein11111.github.io/schulgehirn</a></p></div>`;
+  if (SYNC.cfg) return `<div class="h-sec"><h2>PC & Handy synchronisieren</h2><span class="badge ok">verbunden</span></div><div class="card pad">
+    <p style="margin:0;font-size:14px">Dein Stand wird automatisch über dein privates GitHub-Repo <b>${esc(SYNC.cfg.owner)}/${esc(SYNC.cfg.repo)}</b> abgeglichen – nach jeder Änderung und beim Öffnen der App.</p>
+    <div class="muted" style="font-size:13px;margin-top:8px" id="syncState">${syncStateText()}</div>
+    <div class="grid2" style="margin-top:12px"><button class="btn primary" data-act="syncNow">${ic("refresh", 17)}Jetzt synchronisieren</button><button class="btn" data-act="phoneQR">${ic("phone", 17)}Anderes Gerät verbinden</button></div>
+    <button class="btn sm ghost danger" style="margin-top:8px" data-act="syncOff">Synchronisierung auf diesem Gerät beenden</button></div>`;
+  return `<div class="h-sec"><h2>PC & Handy synchronisieren</h2></div><div class="card pad">
+    <p style="margin:0;font-size:14px">Damit PC und Handy immer denselben Stand haben, speichert die App eine Kopie in einem <b>privaten Repo auf deinem GitHub</b> (nur du siehst es).</p>
+    <div class="slabel" style="padding:16px 0 6px">Schon auf dem anderen Gerät eingerichtet?</div>
+    <div class="grid2"><button class="btn primary" data-act="scanSync">${ic("camera", 17)}QR-Code fotografieren</button><button class="btn" data-act="pasteSync">${ic("key", 17)}Code</button></div>
+    <div class="slabel" style="padding:18px 0 6px">Zum ersten Mal einrichten (am besten am PC)</div>
+    <ol class="muted" style="margin:0;padding-left:20px;font-size:14px;line-height:1.7"><li><a href="https://github.com/settings/tokens/new?scopes=repo&description=Schul-Gehirn%20Sync" target="_blank" rel="noopener">GitHub-Schlüssel erstellen</a> (bei <i>Expiration</i> „No expiration“ wählen → ganz unten <b>Generate token</b>)</li><li>Den Schlüssel (<code>ghp_…</code>) kopieren und hier einfügen</li></ol>
+    <input id="syncToken" type="password" autocomplete="off" placeholder="ghp_…" style="margin-top:10px">
+    <button class="btn primary block" style="margin-top:10px" data-act="syncConnect">${ic("refresh", 17)}Verbinden & synchronisieren</button></div>`;
+}
+function installSection(){
+  if (window.claude || isStandalone()) return "";
+  const pc = !isIOS && !/android/i.test(navigator.userAgent);
+  return `<div class="h-sec"><h2>Als App installieren</h2></div><div class="card pad">
+    ${installEvt ? `<p style="margin:0 0 10px;font-size:14px">Installiert sich als eigenes Programm mit Icon – ${pc ? "im Startmenü/Desktop und in der Taskleiste" : "auf dem Homescreen"}, läuft auch offline.</p><button class="btn primary block" data-act="install">${ic("download", 17)}Jetzt installieren</button>`
+    : pc ? `<p style="margin:0;font-size:14px">In <b>Chrome</b> oder <b>Edge</b>: rechts in der Adressleiste auf das Symbol <b>„App installieren“</b> (Bildschirm mit Pfeil) klicken → <b>Installieren</b>. Danach findest du Schul-Gehirn im Startmenü und kannst es an die Taskleiste anheften.</p>`
+    : `<p style="margin:0;font-size:14px">In Safari unten auf <b>Teilen</b> tippen → <b>„Zum Home-Bildschirm“</b>.</p>`}</div>`;
+}
+
 /* ---------- Image processing ---------- */
 const canvasBlob = (c, q = .86) => new Promise(r => c.toBlob(r, "image/jpeg", q));
 function makeThumb(c){ const w = 300, s = w / c.width, t = document.createElement("canvas"); t.width = w; t.height = Math.round(c.height * s); t.getContext("2d").drawImage(c, 0, 0, t.width, t.height); return t.toDataURL("image/jpeg", .7); }
@@ -2359,7 +2560,7 @@ const A = {
   tpSave: async () => { const name = $("#tpName").value.trim(); if (!name){ $("#tpName").focus(); return; } const s = S.subjects.find(x => x.id === S.subjectId); if (!s) return; s.topics = s.topics || []; if (S._tp){ const t = s.topics.find(t => t.id === S._tp); if (t) t.name = name; } else { const t = {id:uid(), name}; s.topics.push(t); S.topicId = t.id; } await store.put("subjects", s); closeModal(); render(); },
   tpDel: async () => { const s = S.subjects.find(x => x.id === S.subjectId), id = S._tp, n = S.items.filter(i => i.topicId === id).length; if (!(await confirmBox("Unterordner löschen?", n ? `Die ${n} Einträge darin bleiben in ${s.short} erhalten.` : "Der Unterordner wird entfernt."))) return; s.topics = s.topics.filter(t => t.id !== id); for (const it of S.items.filter(i => i.topicId === id)){ it.topicId = ""; await store.put("items", it); } await store.put("subjects", s); S.topicId = "all"; render(); },
   add: () => { S.addTarget = null; addSheet(); },
-  cam: () => { closeModal(); S.addTarget = null; pickFiles(true); },
+  cam: () => { closeModal(); S.addTarget = null; S.scanSync = false; pickFiles(true); },
   files: el => { closeModal(); S.addTarget = null; S.nextKind = el?.dataset?.kind || null; pickFiles(false); },
   addCam: () => { S.addTarget = S.openId; pickFiles(true); },
   addFile: () => { S.addTarget = S.openId; pickFiles(false); },
@@ -2403,6 +2604,14 @@ const A = {
   fillToggle: async () => { const it = item(S.openId); it.fillOn = it.fillOn === false; S.fillEdit = false; await saveItem(it); renderDetail(); },
   fillStyle: async el => { const it = item(S.openId); it.fillStyle = el.dataset.s; await saveItem(it); renderDetail(); },
   binderPdf: () => binderPdfDialog(),
+  syncNow: () => syncNow(true),
+  syncConnect: () => syncConnect($("#syncToken").value),
+  phoneQR: () => showPhoneQR(),
+  copySync: async () => { try { await navigator.clipboard.writeText(syncCode()); toast("Code kopiert"); } catch { toast("Bitte manuell markieren und kopieren"); } },
+  scanSync: () => { S.scanSync = true; $("#camIn").value = ""; $("#camIn").click(); },
+  pasteSync: () => { openModal(`<h3>Code vom anderen Gerät</h3><p class="sub">Am PC unter Mehr → „Anderes Gerät verbinden“ → „Code kopieren“.</p><textarea id="syncCodeIn" style="margin-top:12px;min-height:90px" placeholder="SG1.…"></textarea><div class="mact"><button class="btn" data-act="mclose">Abbrechen</button><button class="btn primary" data-act="pasteSyncGo">Verbinden</button></div>`); },
+  pasteSyncGo: () => { const c = parseSyncCode($("#syncCodeIn").value); if (!c){ toast("Code ungültig"); return; } closeModal(); syncConnect(c.t); },
+  syncOff: async () => { if (!(await confirmBox("Synchronisierung beenden?", "Deine Daten bleiben auf diesem Gerät und im GitHub-Repo erhalten – sie werden nur nicht mehr abgeglichen.", "Beenden", false))) return; SYNC.cfg = null; await setMeta("sync", null); render(); },
   newTest: () => { closeModal(); newTest(); },
   tVideoAll: () => { const it = item(S.openId); flushSaves(); testVideo(it, true); },
   tVideoNew: () => { const it = item(S.openId); it.videoStale = true; testVideo(it, true); },
@@ -2474,7 +2683,7 @@ const A = {
   importB: () => { $("#bakIn").value = ""; $("#bakIn").click(); },
   impMerge: () => applyImport(false),
   impReplace: async () => { const d = S._import; if (await confirmBox("Alles ersetzen?", "Alles, was gerade hier ist, wird durch das Backup ersetzt.", "Ersetzen")){ S._import = d; applyImport(true); } },
-  wipe: async () => { if (!(await confirmBox("Alles löschen?", "Alle Dokumente, Aufgaben und Notizen werden gelöscht. Mach vorher ein Backup!", "Alles löschen"))) return; for (const s of ["items","blobs"]) await store.clear(s); S.items = []; urlCache.forEach(u => URL.revokeObjectURL(u)); urlCache.clear(); toast("Alles gelöscht"); render(); },
+  wipe: async () => { if (!(await confirmBox("Alles löschen?", "Alle Dokumente, Aufgaben und Notizen werden gelöscht" + (SYNC.cfg ? " – auch auf deinen anderen Geräten." : ".") + " Mach vorher ein Backup!", "Alles löschen"))) return; for (const it of S.items) SYNC.deleted[it.id] = Date.now(); await setMeta("deleted", SYNC.deleted); for (const s of ["items","blobs"]) await store.clear(s); S.items = []; urlCache.forEach(u => URL.revokeObjectURL(u)); urlCache.clear(); toast("Alles gelöscht"); render(); syncSoon(500); },
   lseg: el => { S.lseg = el.dataset.s; render(); },
   scope: el => { S.askScope = el.dataset.id; render(); },
   sugg: el => askSend(el.textContent),
@@ -2520,7 +2729,7 @@ document.addEventListener("keydown", e => {
   if (e.key === "Escape" && !$("#video").hidden){ closeVideo(); return; }
   if (e.key === "Escape"){ if (!$("#modal").hidden) closeModal(); else if (S.openId) closeItem(); }
 });
-$("#camIn").addEventListener("change", e => { if (e.target.files.length) startImport(e.target.files); });
+$("#camIn").addEventListener("change", e => { if (!e.target.files.length) return; if (S.scanSync){ S.scanSync = false; scanSyncPhoto(e.target.files[0]); return; } startImport(e.target.files); });
 $("#fileIn").addEventListener("change", e => { if (e.target.files.length) startImport(e.target.files); });
 $("#bakIn").addEventListener("change", e => { if (e.target.files[0]) importBackup(e.target.files[0]); });
 let dragN = 0;
@@ -2542,12 +2751,16 @@ async function init(){
     S.timetable = (await getMeta("timetable")) || [];
     S.lastBackup = (await getMeta("lastBackup")) || 0;
     const prefs = await getMeta("prefs"); if (prefs){ S.lastMode = prefs.lastMode; S.autoAi = prefs.autoAi; S.autoFill = prefs.autoFill; }
+    SYNC.cfg = (await getMeta("sync")) || null; SYNC.deleted = (await getMeta("deleted")) || {}; SYNC.metaTs = (await getMeta("metaTs")) || {}; SYNC.last = (await getMeta("syncLast")) || 0;
     S.me = (await getMeta("me")) || S.me; V.rate = (await getMeta("vrate")) || 1; const vm = await getMeta("vmusic"); if (vm === false) MUSIC.on = false;
     S.gkey = (await getMeta("gkey")) || ""; S.gmodel = (await getMeta("gmodel")) || ""; S.hideInstall = !!(await getMeta("hideInstall"));
-    if (!(await getMeta("seeded"))){ seed(); for (const s of S.subjects) await store.put("subjects", s); await saveTT(); await setMeta("seeded", 1); }
+    if (!(await getMeta("seeded"))){ seed(); SYNC.applying = true; try { for (const s of S.subjects){ s.updated = 1; await store.put("subjects", s); } await saveTT(); } finally { SYNC.applying = false; } await setMeta("seeded", 1); }
   } catch (e){ console.error(e); if (!S.subjects.length) seed(); }
   render(); initCaps();
   if ("serviceWorker" in navigator && location.protocol === "https:" && !window.claude) navigator.serviceWorker.register("sw.js").catch(() => {});
+  if (SYNC.cfg && canSync()){ setTimeout(() => syncNow(), 800); setInterval(() => { if (!document.hidden) syncNow(); }, 90000); }
+  addEventListener("online", () => syncSoon(500));
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) syncSoon(300); });
   if (location.hash === "#scan") setTimeout(() => { history.replaceState(null, "", location.pathname); addSheet(); }, 300);
 }
 addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; if (S.view === "home") render(); });
