@@ -59,7 +59,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-.015em}
 main{max-width:880px;margin:0 auto;padding:4px 18px calc(110px + var(--safe-b))}
 #tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:saturate(1.6) blur(16px);-webkit-backdrop-filter:saturate(1.6) blur(16px);border-top:1px solid var(--border);padding-bottom:var(--safe-b)}
 #tabbar .in{display:flex;max-width:560px;margin:0 auto}
-#tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0 7px;font-size:10.5px;font-weight:600;color:var(--faint);letter-spacing:.01em}
+#tabbar button{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0 7px;font-size:10px;font-weight:600;color:var(--faint);letter-spacing:.01em}
 #tabbar button.on{color:var(--accent)}
 #fab{position:fixed;right:18px;bottom:calc(76px + var(--safe-b));z-index:31;width:56px;height:56px;border-radius:18px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;box-shadow:0 8px 24px color-mix(in srgb,var(--accent) 40%,transparent);transition:transform .15s}
 #fab:active{transform:scale(.94)}
@@ -342,6 +342,17 @@ details.x summary::-webkit-details-marker{display:none}
 .sdot.err{color:var(--bad)}
 .qrbox{background:#fff;border-radius:14px;padding:12px;margin:14px auto 0;max-width:280px}
 .qrbox svg{display:block;width:100%;height:auto}
+.notebook{background:var(--surface);border-left:6px double color-mix(in srgb,var(--accent) 35%,var(--border))}
+.bhrow .bhnr{width:46px;height:50px;border-radius:10px;background:var(--accent-bg);color:var(--accent);display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none;line-height:1}
+.bhnr small{font-size:10px;font-weight:600}.bhnr b{font:800 18px var(--display)}
+.paper{margin-top:10px;padding:18px 16px 20px 26px;border-radius:var(--r);background:var(--surface);border:1px solid var(--border);box-shadow:var(--sh);position:relative;background-image:linear-gradient(90deg,transparent 15px,color-mix(in srgb,#e11d48 35%,transparent) 15px,color-mix(in srgb,#e11d48 35%,transparent) 16.5px,transparent 16.5px)}
+.bhsec{margin-top:20px}
+.bhh{display:flex;align-items:center;gap:8px;color:var(--accent)}
+.bhh b{color:var(--text);font-size:15px}
+.hrs{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin:0}
+.hrs input{width:58px;padding:6px 8px;text-align:center}
+textarea.lined{margin-top:8px;min-height:130px;line-height:28px;padding-top:4px;background-color:var(--surface);background-image:repeating-linear-gradient(transparent,transparent 27px,color-mix(in srgb,var(--accent) 22%,transparent) 27px,color-mix(in srgb,var(--accent) 22%,transparent) 28px);background-attachment:local;border-color:var(--border);font-family:Caveat,cursive;font-size:21px}
+textarea.bhtext{margin-top:6px;min-height:150px;font-size:15px;line-height:1.55}
 .transcript{white-space:pre-wrap;font-size:13.5px;line-height:1.55;padding:14px;max-height:420px;overflow:auto;margin-top:6px}
 
 /* ---------- Modal / Toast ---------- */
@@ -475,6 +486,7 @@ const P = {
   monitor:'<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
   network:'<circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M12 7.5v4M12 11.5 5 16.5M12 11.5l7 5"/>',
   music:'<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+  notebook:'<rect x="5" y="3" width="15" height="18" rx="2"/><path d="M9 3v18M3 7h4M3 12h4M3 17h4M12 8h5M12 12h5"/>',
   stop:'<rect x="6" y="6" width="12" height="12" rx="2"/>'
 };
 const ic = (n, s = 20, sw = 2) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n] || ""}</svg>`;
@@ -482,7 +494,7 @@ const thinking = (t = "denkt nach") => `<span class="thinking"><i></i><i></i><i>
 
 /* ---------- State & Storage ---------- */
 const S = {view:"home", subjectId:null, topicId:"all", filter:"all", query:"", openId:null, dtab:"learn", tool:null, qOpen:-1,
-  subjects:[], items:[], timetable:[], chat:[], asking:false, askScope:"all", lseg:"ueben", live:{}, lastBackup:0, warn:"", addTarget:null, gkey:"", gmodel:"", me:{name:"Lukas St.", klasse:"IT62"}};
+  subjects:[], items:[], timetable:[], chat:[], asking:false, askScope:"all", lseg:"ueben", live:{}, lastBackup:0, warn:"", addTarget:null, gkey:"", gmodel:"", me:{name:"Lukas St.", klasse:"IT62"}, bh:{}};
 const deDate = () => new Date().toLocaleDateString("de-DE", {day:"2-digit", month:"2-digit", year:"numeric"});
 const personal = () => `Persönliche Angaben des Schülers (IMMER so eintragen, wenn es auf der Seite Felder/Linien dafür gibt, z. B. "Name:", "Klasse:", "Datum:"): Name = "${S.me.name}", Klasse = "${S.me.klasse}", Datum = "${deDate()}".`;
 let db = null, idbOK = true;
@@ -675,8 +687,8 @@ function md(t){
 }
 
 /* ---------- Shell rendering ---------- */
-const NAV = [["home","home","Heute"],["subjects","folder","Mappen"],["learn","cap","Lernen"],["tasks","tasks","Aufgaben"],["more","menu","Mehr"]];
-const TITLES = {home:"Heute", subjects:"Mappen", learn:"Lernen", tasks:"Aufgaben", more:"Mehr", search:"Suche"};
+const NAV = [["home","home","Heute"],["subjects","folder","Mappen"],["learn","cap","Lernen"],["bericht","notebook","Bericht"],["tasks","tasks","Aufgaben"],["more","menu","Mehr"]];
+const TITLES = {home:"Heute", subjects:"Mappen", learn:"Lernen", bericht:"Berichtsheft", tasks:"Aufgaben", more:"Mehr", search:"Suche"};
 function renderShell(){
   $("#tabIn").innerHTML = NAV.map(([v, i, l]) => `<button data-act="go" data-v="${v}" class="${S.view === v ? "on" : ""}">${ic(i, 23, S.view === v ? 2.2 : 1.8)}${l}</button>`).join("");
   const openTasks = S.items.filter(i => i.type === "task" && !i.done).length;
@@ -697,7 +709,7 @@ function renderShell(){
 function render(){
   renderShell();
   let h = S.warn ? `<div class="warnbar">${esc(S.warn)}</div>` : "";
-  h += ({home:vHome, subjects:vBinder, learn:vLearn, tasks:vTasks, more:vMore, search:vSearch}[S.view] || vHome)();
+  h += ({home:vHome, subjects:vBinder, learn:vLearn, bericht:vBericht, tasks:vTasks, more:vMore, search:vSearch}[S.view] || vHome)();
   $("#main").innerHTML = h;
   if (S.view === "search"){ const q = $("#q"); q.value = S.query; renderSearch(); setTimeout(() => q.focus(), 30); }
   if (S.view === "learn" && S.lseg === "tutor") renderChat();
@@ -733,7 +745,7 @@ function taskRow(t, showSub = true){
   return `<div class="row ${t.done ? "done" : ""}"><button class="check ${t.done ? "on" : ""}" data-act="toggle" data-id="${t.id}" aria-label="Erledigt">${ic("check", 15, 3)}</button>
     <button class="main" data-act="open" data-id="${t.id}" style="text-align:left"><div class="t">${esc(t.title || "Aufgabe")}</div>${showSub ? `<div class="s">${sb(s)}${t.text ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:50vw">${esc(t.text.slice(0, 60))}</span>` : ""}</div>` : ""}</button>${due}</div>`;
 }
-const anyRow = it => it.type === "task" ? taskRow(it) : it.type === "note" ? noteRow(it) : it.type === "test" ? testRow(it) : docRow(it);
+const anyRow = it => it.type === "task" ? taskRow(it) : it.type === "note" ? noteRow(it) : it.type === "test" ? testRow(it) : it.type === "bericht" ? berichtRow(it) : docRow(it);
 
 /* ---------- Views ---------- */
 const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
@@ -788,7 +800,7 @@ function vHome(){
   h += soon.length ? `<div class="card">${soon.map(t => taskRow(t)).join("")}</div>` : `<div class="card empty">Nichts fällig in den nächsten 7 Tagen.</div>`;
   const cont = docs().filter(d => { const p = qProg(d); return p.n && p.pct < 100; }).sort((a, b) => b.updated - a.updated).slice(0, 3);
   if (cont.length) h += `<div class="h-sec"><h2>Weiterlernen</h2></div><div class="card">${cont.map(docRow).join("")}</div>`;
-  const recent = S.items.filter(i => i.type !== "task").sort((a, b) => b.created - a.created).slice(0, 5);
+  const recent = S.items.filter(i => i.type !== "task" && i.type !== "bericht").sort((a, b) => b.created - a.created).slice(0, 5);
   h += `<div class="h-sec"><h2>Zuletzt abgelegt</h2></div>`;
   h += recent.length ? `<div class="card">${recent.map(anyRow).join("")}</div>` : `<div class="card empty">${ic("folder", 32, 1.6)}Noch leer. Scann dein erstes Blatt – ab dann musst du nichts mehr mitschleppen.</div>`;
   if (S.items.length >= 3 && Date.now() - S.lastBackup > 7 * 864e5)
@@ -866,7 +878,7 @@ function renderSearch(){
   const toks = q.split(/\s+/).filter(Boolean), res = [];
   for (const it of S.items){
     const s = subj(it.subjectId);
-    const hay = [it.title, it.text, it.summary, it.transcript, (it.tags || []).join(" "), (it.questions || []).map(x => x.frage).join(" "), it.goals || "", s.short, s.full].join("\n").toLowerCase();
+    const hay = [it.title, it.text, it.summary, it.transcript, (it.tags || []).join(" "), (it.questions || []).map(x => x.frage).join(" "), it.goals || "", it.sec ? Object.values(it.sec).map(x => x.notes + " " + x.text).join(" ") : "", s.short, s.full].join("\n").toLowerCase();
     if (!toks.every(t => hay.includes(t))) continue;
     const src = [it.text, it.summary, it.transcript].join(" ").replace(/\s+/g, " "), idx = src.toLowerCase().indexOf(toks[0]);
     const snip = idx >= 0 ? (idx > 40 ? "…" : "") + src.slice(Math.max(0, idx - 40), idx + 110) : (it.summary || it.text || "").slice(0, 110);
@@ -950,6 +962,7 @@ function openItem(id){
 function closeItem(){ flushSaves(); S.openId = null; $("#detail").hidden = true; $("#detail").innerHTML = ""; render(); }
 function renderDetail(){
   const it = item(S.openId); if (!it){ closeItem(); return; }
+  if (it.type === "bericht"){ renderBericht(it); return; }
   const s = subj(it.subjectId), k = it.type === "sheet" ? KIND[it.kind] || KIND.blatt : null;
   const label = k ? k.l : it.type === "task" ? "Aufgabe" : it.type === "test" ? "Test-Vorbereitung" : "Notiz";
   const keepScroll = $("#detail").scrollTop;
@@ -1997,7 +2010,7 @@ async function docVideo(it){
 
 /* ---------- Synchronisierung PC ↔ Handy über ein privates GitHub-Repo ---------- */
 const SYNC = {cfg:null, busy:false, last:0, err:"", timer:null, again:false, applying:false, deleted:{}, metaTs:{}};
-const SYNC_REPO = "schulgehirn-daten", SYNC_META = ["timetable", "me", "gkey"];
+const SYNC_REPO = "schulgehirn-daten", SYNC_META = ["timetable", "me", "gkey", "bh"];
 const canSync = () => !window.claude && (location.protocol === "https:" || location.hostname === "localhost");
 // jede lokale Änderung merken → automatisch synchronisieren
 {
@@ -2032,7 +2045,7 @@ function syncErrText(e){
 }
 function localSnapshot(){
   return {v:1, subjects:S.subjects, items:S.items, deleted:SYNC.deleted,
-    timetable:{ts:SYNC.metaTs.timetable || 0, val:S.timetable}, me:{ts:SYNC.metaTs.me || 0, val:S.me}, gkey:{ts:SYNC.metaTs.gkey || 0, val:S.gkey}};
+    timetable:{ts:SYNC.metaTs.timetable || 0, val:S.timetable}, me:{ts:SYNC.metaTs.me || 0, val:S.me}, gkey:{ts:SYNC.metaTs.gkey || 0, val:S.gkey}, bh:{ts:SYNC.metaTs.bh || 0, val:S.bh}};
 }
 function mergeDB(L, R){
   if (!R) return L;
@@ -2040,7 +2053,7 @@ function mergeDB(L, R){
   const pick = (a, b, f) => { const m = new Map(); for (const x of [...(a || []), ...(b || [])]){ const o = m.get(x.id); if (!o || f(x) > f(o)) m.set(x.id, x); } return [...m.values()].filter(x => !(del[x.id] && del[x.id] >= f(x))); };
   const newer = (a, b) => (b && (b.ts || 0) > (a?.ts || 0)) ? b : a;
   return {v:1, deleted:del, subjects:pick(L.subjects, R.subjects, s => s.updated || s.created || 0), items:pick(L.items, R.items, i => i.updated || i.created || 0),
-    timetable:newer(L.timetable, R.timetable), me:newer(L.me, R.me), gkey:newer(L.gkey, R.gkey)};
+    timetable:newer(L.timetable, R.timetable), me:newer(L.me, R.me), gkey:newer(L.gkey, R.gkey), bh:newer(L.bh, R.bh)};
 }
 async function applyMerged(M){
   SYNC.applying = true;
@@ -2056,6 +2069,7 @@ async function applyMerged(M){
     S.items = M.items; S.subjects = M.subjects.map(s => ({...s, topics:s.topics || []}));
     if (M.timetable){ S.timetable = M.timetable.val || []; SYNC.metaTs.timetable = M.timetable.ts; await store.put("meta", {k:"timetable", v:S.timetable}); }
     if (M.me?.val){ S.me = M.me.val; SYNC.metaTs.me = M.me.ts; await store.put("meta", {k:"me", v:S.me}); }
+    if (M.bh?.val){ S.bh = M.bh.val; SYNC.metaTs.bh = M.bh.ts; await store.put("meta", {k:"bh", v:S.bh}); }
     if (M.gkey){ S.gkey = M.gkey.val || ""; SYNC.metaTs.gkey = M.gkey.ts; await store.put("meta", {k:"gkey", v:S.gkey}); }
     SYNC.deleted = M.deleted || {}; await store.put("meta", {k:"deleted", v:SYNC.deleted}); await store.put("meta", {k:"metaTs", v:SYNC.metaTs});
     return changedOpen;
@@ -2187,6 +2201,149 @@ function installSection(){
     ${installEvt ? `<p style="margin:0 0 10px;font-size:14px">Installiert sich als eigenes Programm mit Icon – ${pc ? "im Startmenü/Desktop und in der Taskleiste" : "auf dem Homescreen"}, läuft auch offline.</p><button class="btn primary block" data-act="install">${ic("download", 17)}Jetzt installieren</button>`
     : pc ? `<p style="margin:0;font-size:14px">In <b>Chrome</b> oder <b>Edge</b>: rechts in der Adressleiste auf das Symbol <b>„App installieren“</b> (Bildschirm mit Pfeil) klicken → <b>Installieren</b>. Danach findest du Schul-Gehirn im Startmenü und kannst es an die Taskleiste anheften.</p>`
     : `<p style="margin:0;font-size:14px">In Safari unten auf <b>Teilen</b> tippen → <b>„Zum Home-Bildschirm“</b>.</p>`}</div>`;
+}
+
+/* ---------- Berichtsheft (Ausbildungsnachweis) ---------- */
+const BH_SECS = [["betrieb","Betriebliche Tätigkeiten","building"],["unterweisung","Unterweisungen, Schulungen, betrieblicher Unterricht","book"],["schule","Berufsschule (Themen des Unterrichts)","cap"]];
+const mondayOf = d => { const x = new Date(d); x.setHours(12, 0, 0, 0); const wd = (x.getDay() + 6) % 7; x.setDate(x.getDate() - wd); return x; };
+const isoWeek = d => { const t = new Date(d); t.setHours(12, 0, 0, 0); t.setDate(t.getDate() + 3 - ((t.getDay() + 6) % 7)); const w1 = new Date(t.getFullYear(), 0, 4); return 1 + Math.round(((t - w1) / 864e5 - 3 + ((w1.getDay() + 6) % 7)) / 7); };
+const fmtD = d => new Date(d).toLocaleDateString("de-DE", {day:"2-digit", month:"2-digit", year:"numeric"});
+const berichte = () => S.items.filter(i => i.type === "bericht").sort((a, b) => a.week.localeCompare(b.week));
+function bhNr(it){
+  const list = berichte();
+  if (S.bh.start){ const n = Math.floor((new Date(it.week + "T12:00") - mondayOf(S.bh.start + "T12:00")) / (7 * 864e5)) + 1; if (n > 0) return n; }
+  return list.findIndex(x => x.id === it.id) + 1;
+}
+const bhYear = it => Math.max(1, Math.ceil(bhNr(it) / 52));
+function weekRange(it){ const m = new Date(it.week + "T12:00"), f = new Date(m); f.setDate(f.getDate() + 4); return [m, f]; }
+function schoolHours(){ let min = 0; for (const l of S.timetable){ const [a, b] = [l.start, l.end].map(t => { const [h, m] = t.split(":").map(Number); return h * 60 + m; }); min += Math.max(0, b - a); } return min ? Math.round(min / 60 * 2) / 2 : ""; }
+function newBericht(weekIso){
+  const ex = S.items.find(i => i.type === "bericht" && i.week === weekIso); if (ex){ openItem(ex.id); return ex; }
+  const it = newItem("bericht", {subjectId:"_bericht", topicId:"", week:weekIso, title:"", sec:{betrieb:{notes:"", text:"", hours:""}, unterweisung:{notes:"", text:"", hours:""}, schule:{notes:"", text:"", hours:String(schoolHours())}}, abteilung:S.bh.abteilung || "", fertig:false});
+  saveItem(it); openItem(it.id); return it;
+}
+function berichtRow(it){
+  const [m, f] = weekRange(it), secs = Object.values(it.sec || {}), hasText = secs.some(x => x.text), hasNotes = secs.some(x => x.notes);
+  const st = it.fertig ? `<span class="badge ok">${ic("check", 13, 3)}fertig</span>` : hasText ? `<span class="badge acc">ausformuliert</span>` : hasNotes ? `<span class="badge warn">Stichpunkte</span>` : `<span class="badge">leer</span>`;
+  return `<button class="row bhrow" data-act="open" data-id="${it.id}"><div class="bhnr"><small>Nr.</small><b>${bhNr(it)}</b></div><div class="main"><div class="t">KW ${isoWeek(m)} · ${m.toLocaleDateString("de-DE", {day:"2-digit", month:"2-digit"})} – ${fmtD(f)}</div><div class="s">${esc(((it.sec?.betrieb?.text || it.sec?.betrieb?.notes || "").replace(/\s+/g, " ").slice(0, 70)) || "Noch keine Einträge")}</div></div>${st}</button>`;
+}
+function vBericht(){
+  const list = berichte().reverse(), cur = isoOf(mondayOf(new Date())), hasCur = list.some(i => i.week === cur);
+  const done = list.filter(i => i.fertig).length;
+  let h = `<div class="pagehead"><div class="k">Ausbildungsnachweis</div><h1>Berichtsheft</h1><p>${esc(S.me.name)}${S.bh.beruf ? " · " + esc(S.bh.beruf) : ""}${S.bh.betrieb ? " · " + esc(S.bh.betrieb) : ""}</p></div>`;
+  if (!S.bh.beruf || !S.bh.start) h += `<div class="notice">${ic("edit", 22)}<div><b>Einmal kurz einrichten</b><small>Beruf, Betrieb, Ausbilder und Ausbildungsbeginn – kommt so aufs PDF.</small></div><button class="btn sm primary" data-act="bhSettings">Einrichten</button></div>`;
+  h += `<div class="grid2" style="margin-top:14px"><button class="btn primary lg" data-act="bhNew" data-w="${cur}">${ic(hasCur ? "edit" : "plus", 18)}${hasCur ? "Diese Woche" : "Neue Woche"}</button><button class="btn lg" data-act="bhPdf">${ic("download", 18)}Als PDF</button></div>`;
+  h += `<div class="h-sec"><h2>Wochen</h2><span class="sp"></span><span class="muted">${done}/${list.length} fertig</span><button class="icbtn" data-act="bhSettings" aria-label="Einstellungen">${ic("menu", 18)}</button></div>`;
+  h += list.length ? `<div class="card notebook">${list.map(berichtRow).join("")}</div><button class="btn sm ghost" style="margin-top:8px" data-act="bhPick">${ic("calendar", 15)}Andere Woche nachtragen</button>`
+    : `<div class="card empty">${ic("note", 34, 1.5)}Noch keine Woche. Tipp auf <b>„Neue Woche“</b>, schreib Stichpunkte – ich mache daraus fertige Texte.</div>`;
+  return h;
+}
+function renderBericht(it){
+  const [m, f] = weekRange(it), keep = $("#detail").scrollTop;
+  let h = `<header class="appbar scrolled"><div class="in"><button class="icbtn" data-act="dclose" aria-label="Zurück">${ic("back", 22)}</button><span class="muted" style="font-weight:600;font-size:14px">Berichtsheft · Nr. ${bhNr(it)}</span><span class="sp"></span><button class="icbtn" data-act="delitem" aria-label="Löschen" style="color:var(--bad)">${ic("trash", 20)}</button></div></header><main>`;
+  h += `<div class="paper"><div class="phd"><div><div class="muted" style="font-size:12.5px;font-weight:600">AUSBILDUNGSNACHWEIS NR. ${bhNr(it)} · ${bhYear(it)}. AUSBILDUNGSJAHR</div><h1 style="font:800 22px var(--display);margin-top:2px">KW ${isoWeek(m)} · ${m.toLocaleDateString("de-DE", {day:"2-digit", month:"2-digit"})} – ${fmtD(f)}</h1></div></div>
+    <div class="grid2" style="margin-top:6px"><label class="f">Woche ab (Montag)<input type="date" data-bf="week" value="${esc(it.week)}"></label><label class="f">Abteilung<input data-bf="abteilung" value="${esc(it.abteilung || "")}" placeholder="z. B. IT-Support"></label></div>`;
+  const busyAll = S.live["bh-" + it.id] !== undefined;
+  for (const [key, label, icon] of BH_SECS){
+    const sc = it.sec[key], k2 = `bh-${it.id}-${key}`, busy = S.live[k2] !== undefined || busyAll;
+    h += `<div class="bhsec"><div class="bhh">${ic(icon, 18)}<b>${label}</b><span class="sp"></span><label class="hrs"><input data-bs="${key}.hours" value="${esc(sc.hours || "")}" inputmode="decimal" placeholder="–"> Std.</label></div>
+      <textarea class="lined" data-bs="${key}.notes" placeholder="${key === "betrieb" ? "Stichpunkte, z. B.&#10;- PCs für neue Mitarbeiter eingerichtet&#10;- Drucker im Büro repariert&#10;- Tickets im Helpdesk bearbeitet" : key === "schule" ? "Stichpunkte – oder unten „aus Mappen übernehmen“" : "Stichpunkte, z. B. Datenschutz-Schulung, Einweisung …"}">${esc(sc.notes || "")}</textarea>
+      <div class="qacts">${AI.on ? `<button class="btn sm ${sc.text ? "" : "soft"}" data-act="bhGen" data-k="${key}" ${busy || !(sc.notes || "").trim() ? "disabled" : ""}>${busy ? thinking("schreibe") : ic("sparkle", 15) + (sc.text ? "Neu formulieren" : "Ausformulieren")}</button>` : ""}${key === "schule" ? `<button class="btn sm ghost" data-act="bhSchool">${ic("folder", 15)}Aus Mappen übernehmen</button>` : ""}</div>
+      ${sc.text || S.live[k2] !== undefined ? `<label class="f" style="margin-top:10px">Fertiger Text (kannst du noch ändern)</label><textarea class="bhtext" data-bs="${key}.text" id="live-${k2}">${esc(S.live[k2] ?? sc.text ?? "")}</textarea>` : ""}</div>`;
+  }
+  h += `</div>`;
+  if (AI.on) h += `<button class="btn primary block lg" style="margin-top:14px" data-act="bhGenAll" ${busyAll ? "disabled" : ""}>${busyAll ? thinking("schreibe alle Texte") : ic("sparkle", 18) + "Alles ausformulieren"}</button>`;
+  else h += aiSetupCard("Dann schreibe ich aus deinen Stichpunkten fertige Berichtsheft-Texte.");
+  h += `<div class="grid2" style="margin-top:10px"><button class="btn ${it.fertig ? "soft" : ""}" data-act="bhDone">${ic("check", 17, 2.6)}${it.fertig ? "Fertig ✓" : "Als fertig markieren"}</button><button class="btn" data-act="bhPdfOne">${ic("download", 17)}Diese Woche als PDF</button></div>`;
+  h += `</main>`;
+  $("#detail").innerHTML = h; $("#detail").scrollTop = keep;
+}
+function bhSettings(){
+  const b = S.bh;
+  openModal(`<h3>Berichtsheft einrichten</h3><p class="sub">Steht so auf jeder PDF-Seite.</p>
+    <label class="f">Ausbildungsberuf<input id="bhBeruf" value="${esc(b.beruf || "")}" placeholder="z. B. Fachinformatiker für Systemintegration"></label>
+    <label class="f">Ausbildungsbetrieb<input id="bhBetrieb" value="${esc(b.betrieb || "")}" placeholder="Name der Firma"></label>
+    <div class="grid2"><label class="f">Ausbilder/in<input id="bhAusb" value="${esc(b.ausbilder || "")}" placeholder="Name"></label><label class="f">Ausbildungsbeginn<input id="bhStart" type="date" value="${esc(b.start || "")}"></label></div>
+    <label class="f">Abteilung (Standard)<input id="bhAbt" value="${esc(b.abteilung || "")}" placeholder="optional"></label>
+    <label class="f">Schreibstil der Texte</label><div class="seg" id="bhStyle" style="margin-top:6px"><button data-act="bhStyle" data-s="ich" class="${(b.stil || "ich") === "ich" ? "on" : ""}">Ich-Form</button><button data-act="bhStyle" data-s="neutral" class="${b.stil === "neutral" ? "on" : ""}">Neutral (Passiv)</button></div>
+    <div class="mact"><button class="btn" data-act="mclose">Abbrechen</button><button class="btn primary" data-act="bhSave">Speichern</button></div>`);
+  S._bhStil = b.stil || "ich";
+}
+async function aiBericht(it, only){
+  const keys = only ? [only] : BH_SECS.map(x => x[0]).filter(k => (it.sec[k].notes || "").trim());
+  if (!keys.length){ toast("Erst Stichpunkte eintragen"); return; }
+  const key = only ? `bh-${it.id}-${only}` : "bh-" + it.id; S.live[key] = ""; renderDetail();
+  const [m, f] = weekRange(it);
+  try {
+    const r = await AI.json(`Du schreibst Einträge für das Berichtsheft (Ausbildungsnachweis nach IHK) eines Auszubildenden.
+Azubi: ${S.me.name}${S.bh.beruf ? ", Ausbildungsberuf: " + S.bh.beruf : ""}${S.bh.betrieb ? ", Betrieb: " + S.bh.betrieb : ""}. Woche: ${fmtD(m)} bis ${fmtD(f)}${it.abteilung ? ", Abteilung: " + it.abteilung : ""}.
+Mach aus den Stichpunkten je Bereich einen sauberen Berichtsheft-Text: sachlich, in ganzen Sätzen, ${S.bh.stil === "neutral" ? "unpersönlich/Passiv (z. B. „Es wurden … eingerichtet“)" : "in der Ich-Form (z. B. „Ich habe … eingerichtet“)"}, im Perfekt oder Präteritum, mit korrekten Fachbegriffen, kurz erklärt WAS gemacht wurde und WIE bzw. WOZU (1 Halbsatz), 3–8 Sätze pro Bereich. NICHTS erfinden, was nicht aus den Stichpunkten folgt; keine Bewertungen, keine Emojis, keine Aufzählungszeichen.
+${keys.map(k => `### ${BH_SECS.find(x => x[0] === k)[1]} (Schlüssel "${k}")\n${it.sec[k].notes}`).join("\n\n")}
+Antworte NUR mit JSON: {${keys.map(k => `"${k}":"Text"`).join(",")}}`);
+    for (const k of keys) if (r && r[k]) it.sec[k].text = String(r[k]).trim();
+    await saveItem(it);
+  } catch (e){ const msg = aiErr(e); if (msg) toast(msg); }
+  delete S.live[key]; renderDetail();
+}
+function schoolNotes(it){
+  const [m] = weekRange(it), from = m.getTime() - 864e5 * 0.5, to = from + 7 * 864e5;
+  const by = {};
+  for (const x of S.items){
+    if (!["sheet","note","test"].includes(x.type) || x.created < from || x.created >= to) continue;
+    const s = subj(x.subjectId); if (s.id === "inbox") continue;
+    (by[s.short] = by[s.short] || []).push(x.title + (x.summary ? ` (${x.summary.split(/[.!?]/)[0]})` : ""));
+  }
+  const lines = Object.entries(by).map(([k, v]) => `- ${k}: ${v.join("; ")}`);
+  if (!lines.length){ const days = [...new Set(S.timetable.map(l => l.day))].map(d => DAYS[d]).join(" und "); return S.timetable.length ? `- Berufsschule ${days}: ${[...new Set(S.timetable.map(l => subj(l.subjectId).short))].join(", ")}` : ""; }
+  return lines.join("\n");
+}
+async function exportBerichtsheft(list){
+  if (!list.length){ toast("Noch keine Wochen zum Exportieren"); return; }
+  busy("Berichtsheft wird als PDF erstellt…");
+  try {
+    await ensureJsPdf();
+    const {jsPDF} = window.jspdf, pdf = new jsPDF({unit:"mm", format:"a4", compress:true});
+    const L = 18, W = 174, cell = (x, y, w, h) => pdf.rect(x, y, w, h);
+    list.forEach((it, n) => {
+      if (n) pdf.addPage();
+      const [m, f] = weekRange(it);
+      pdf.setDrawColor(40); pdf.setLineWidth(.3); pdf.setTextColor(20);
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(15); pdf.text(`Ausbildungsnachweis Nr. ${bhNr(it)}`, L, 20);
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(9.5); pdf.text(pdfSafe(`${bhYear(it)}. Ausbildungsjahr`), L + W, 20, {align:"right"});
+      const rows = [["Name", S.me.name], ["Ausbildungsberuf", S.bh.beruf || ""], ["Ausbildungsbetrieb", S.bh.betrieb || ""], ["Woche", `vom ${fmtD(m)} bis ${fmtD(f)} (KW ${isoWeek(m)})`], ["Abteilung", it.abteilung || ""]];
+      let y = 26;
+      for (const [a, b] of rows){ cell(L, y, 45, 7); cell(L + 45, y, W - 45, 7); pdf.setFont("helvetica", "bold"); pdf.setFontSize(9); pdf.text(pdfSafe(a), L + 2, y + 4.8); pdf.setFont("helvetica", "normal"); pdf.setFontSize(10); pdf.text(pdfSafe(b), L + 47, y + 4.8); y += 7; }
+      y += 5;
+      const avail = 297 - y - 46, per = avail / 3;
+      for (const [key, label] of BH_SECS){
+        const sc = it.sec[key] || {}, txt = pdfSafe(sc.text || (sc.notes || "").replace(/^\s*[-•*]\s*/gm, "- "));
+        pdf.setFillColor(238); pdf.rect(L, y, W, 7, "FD"); pdf.setFont("helvetica", "bold"); pdf.setFontSize(9.5); pdf.text(pdfSafe(label), L + 2, y + 4.8);
+        pdf.text("Stunden", L + W - 2, y + 4.8, {align:"right"});
+        const h = per - 7; cell(L, y + 7, W - 22, h); cell(L + W - 22, y + 7, 22, h);
+        let fs = 10.5, lines; pdf.setFont("helvetica", "normal");
+        for (;;){ pdf.setFontSize(fs); lines = pdf.splitTextToSize(txt, W - 26); if (lines.length * fs * .42 <= h - 4 || fs <= 7.5) break; fs -= .5; }
+        pdf.text(lines, L + 2, y + 7 + 2 + fs * .36, {lineHeightFactor:1.2});
+        pdf.setFontSize(11); pdf.text(pdfSafe(String(sc.hours || "")), L + W - 11, y + 7 + 6, {align:"center"});
+        y += per;
+      }
+      y += 4; pdf.setFontSize(8.5); pdf.setTextColor(90); pdf.text("Durch die nachfolgende Unterschrift wird die Richtigkeit und Vollständigkeit der obigen Angaben bestätigt.", L, y); pdf.setTextColor(20);
+      y += 20; pdf.setLineWidth(.3);
+      pdf.line(L, y, L + 78, y); pdf.line(L + W - 78, y, L + W, y);
+      pdf.setFontSize(8.5); pdf.text("Datum, Unterschrift Auszubildende/r", L, y + 4); pdf.text(pdfSafe("Datum, Unterschrift Ausbilder/in" + (S.bh.ausbilder ? " (" + S.bh.ausbilder + ")" : "")), L + W - 78, y + 4);
+      pdf.setFontSize(8); pdf.setTextColor(150); pdf.text(`${n + 1} / ${list.length}`, L + W, 290, {align:"right"}); pdf.setTextColor(20);
+    });
+    pdf.setProperties({title: pdfSafe(`Berichtsheft ${S.me.name}`), author: pdfSafe(S.me.name)});
+    const blob = pdf.output("blob"); unbusy();
+    const name = list.length === 1 ? `Berichtsheft Nr. ${bhNr(list[0])} – ${S.me.name}.pdf` : `Berichtsheft – ${S.me.name} – ${deDate()}.pdf`;
+    if (await saveFile(name.replace(/[\\/:*?"<>|]+/g, ""), blob)) toast(`PDF gespeichert (${list.length} ${list.length === 1 ? "Woche" : "Wochen"})`);
+  } catch (e){ console.error(e); unbusy(); toast("PDF konnte nicht erstellt werden"); }
+}
+function bhPdfDialog(){
+  const list = berichte(), done = list.filter(i => i.fertig).length;
+  openModal(`<h3>Berichtsheft als PDF</h3><p class="sub">Jede Woche wird eine Seite im Ausbildungsnachweis-Format – mit Unterschriftsfeldern.</p>
+    <button class="opt-row" data-act="bhPdfGo" data-m="all"><span class="ib">${ic("note", 20)}</span><span><b>Komplettes Berichtsheft</b><small>${list.length} Wochen</small></span></button>
+    ${done && done < list.length ? `<button class="opt-row" data-act="bhPdfGo" data-m="done"><span class="ib">${ic("check", 20)}</span><span><b>Nur fertige Wochen</b><small>${done} Wochen</small></span></button>` : ""}
+    ${list.length ? `<button class="opt-row" data-act="bhPdfGo" data-m="last"><span class="ib">${ic("calendar", 20)}</span><span><b>Nur die letzte Woche</b><small>Nr. ${bhNr(list[list.length - 1])}</small></span></button>` : ""}`);
 }
 
 /* ---------- Image processing ---------- */
@@ -2604,6 +2761,19 @@ const A = {
   fillToggle: async () => { const it = item(S.openId); it.fillOn = it.fillOn === false; S.fillEdit = false; await saveItem(it); renderDetail(); },
   fillStyle: async el => { const it = item(S.openId); it.fillStyle = el.dataset.s; await saveItem(it); renderDetail(); },
   binderPdf: () => binderPdfDialog(),
+  bhNew: el => newBericht(el.dataset.w),
+  bhPick: () => { openModal(`<h3>Woche nachtragen</h3><label class="f">Ein Tag aus der Woche<input type="date" id="bhPickD" value="${today()}"></label><div class="mact"><button class="btn" data-act="mclose">Abbrechen</button><button class="btn primary" data-act="bhPickGo">Öffnen</button></div>`); },
+  bhPickGo: () => { const v = $("#bhPickD").value; if (!v) return; closeModal(); newBericht(isoOf(mondayOf(v + "T12:00"))); },
+  bhSettings: () => bhSettings(),
+  bhStyle: el => { S._bhStil = el.dataset.s; $$("#bhStyle button").forEach(b => b.classList.toggle("on", b === el)); },
+  bhSave: async () => { S.bh = {beruf:$("#bhBeruf").value.trim(), betrieb:$("#bhBetrieb").value.trim(), ausbilder:$("#bhAusb").value.trim(), start:$("#bhStart").value, abteilung:$("#bhAbt").value.trim(), stil:S._bhStil}; await setMeta("bh", S.bh); closeModal(); toast("Gespeichert"); render(); },
+  bhGen: el => { const it = item(S.openId); flushSaves(); aiBericht(it, el.dataset.k); },
+  bhGenAll: () => { const it = item(S.openId); flushSaves(); aiBericht(it); },
+  bhSchool: async () => { const it = item(S.openId), add = schoolNotes(it); if (!add){ toast("Diese Woche nichts in den Mappen gefunden"); return; } const cur = it.sec.schule.notes.trim(); it.sec.schule.notes = cur ? cur + "\n" + add : add; await saveItem(it); renderDetail(); toast("Themen aus deinen Mappen übernommen"); },
+  bhDone: async () => { const it = item(S.openId); it.fertig = !it.fertig; await saveItem(it); renderDetail(); if (it.fertig) toast("Woche fertig"); },
+  bhPdf: () => bhPdfDialog(),
+  bhPdfOne: () => { const it = item(S.openId); flushSaves(); exportBerichtsheft([it]); },
+  bhPdfGo: el => { const list = berichte(), m = el.dataset.m; closeModal(); exportBerichtsheft(m === "done" ? list.filter(i => i.fertig) : m === "last" ? list.slice(-1) : list); },
   syncNow: () => syncNow(true),
   syncConnect: () => syncConnect($("#syncToken").value),
   phoneQR: () => showPhoneQR(),
@@ -2705,6 +2875,10 @@ document.addEventListener("click", e => { const el = e.target.closest("[data-act
 document.addEventListener("input", e => {
   const t = e.target;
   if (t.id === "q"){ S.query = t.value; renderSearch(); return; }
+  if ((t.dataset?.bs || t.dataset?.bf) && S.openId){ const it = item(S.openId); if (!it) return;
+    if (t.dataset.bs){ const [k, f] = t.dataset.bs.split("."); it.sec[k][f] = t.value; if (f === "notes"){ const b = t.closest(".bhsec")?.querySelector('[data-act="bhGen"]'); if (b && !S.live["bh-" + it.id]) b.disabled = !t.value.trim(); } }
+    else { if (t.dataset.bf === "week"){ if (!t.value) return; it.week = isoOf(mondayOf(t.value + "T12:00")); saveItemSoon(it); renderDetail(); return; } it[t.dataset.bf] = t.value; }
+    saveItemSoon(it); return; }
   if (t.dataset?.ta != null && S.openId){ const it = item(S.openId); it.test.antworten[+t.dataset.ta] = t.value; saveItemSoon(it); return; }
   if (t.dataset?.qa != null && S.openId){ const it = item(S.openId); it.questions[+t.dataset.qa].answer = t.value; saveItemSoon(it); return; }
   const f = t.dataset?.f; if (!f || !S.openId || !t.closest("#detail")) return;
@@ -2752,7 +2926,7 @@ async function init(){
     S.lastBackup = (await getMeta("lastBackup")) || 0;
     const prefs = await getMeta("prefs"); if (prefs){ S.lastMode = prefs.lastMode; S.autoAi = prefs.autoAi; S.autoFill = prefs.autoFill; }
     SYNC.cfg = (await getMeta("sync")) || null; SYNC.deleted = (await getMeta("deleted")) || {}; SYNC.metaTs = (await getMeta("metaTs")) || {}; SYNC.last = (await getMeta("syncLast")) || 0;
-    S.me = (await getMeta("me")) || S.me; V.rate = (await getMeta("vrate")) || 1; const vm = await getMeta("vmusic"); if (vm === false) MUSIC.on = false;
+    S.me = (await getMeta("me")) || S.me; S.bh = (await getMeta("bh")) || {}; V.rate = (await getMeta("vrate")) || 1; const vm = await getMeta("vmusic"); if (vm === false) MUSIC.on = false;
     S.gkey = (await getMeta("gkey")) || ""; S.gmodel = (await getMeta("gmodel")) || ""; S.hideInstall = !!(await getMeta("hideInstall"));
     if (!(await getMeta("seeded"))){ seed(); SYNC.applying = true; try { for (const s of S.subjects){ s.updated = 1; await store.put("subjects", s); } await saveTT(); } finally { SYNC.applying = false; } await setMeta("seeded", 1); }
   } catch (e){ console.error(e); if (!S.subjects.length) seed(); }
