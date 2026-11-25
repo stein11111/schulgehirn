@@ -1,5 +1,5 @@
 /* Schul-Gehirn Service Worker – macht die App offline-fähig */
-const V = "schulgehirn-v7";
+const V = "schulgehirn-v8";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
 const EXTRA = [
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",

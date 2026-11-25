@@ -170,7 +170,11 @@ label.f>input,label.f>select,label.f>textarea{margin-top:6px}
 .phead p{margin:2px 0 0;color:var(--muted);font-size:13px;line-height:1.4}
 .drop{margin-top:16px;border:1.5px dashed var(--border2);border-radius:14px;padding:10px;transition:.15s}
 .drop.over{border-color:var(--c);background:color-mix(in srgb,var(--c) 7%,transparent)}
-.drop .acts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.drop .acts{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.drop .acts button{font-size:11.5px!important;overflow:hidden}
+.pacts{display:flex;gap:8px;flex:none;align-self:flex-start}
+@media (max-width:600px){.phead{flex-wrap:wrap}.phead>.sp{display:none}.phead>div[style*="min-width:0"]{flex:1}.pacts{flex-basis:100%}.pacts .btn{flex:1}.phead h1{font-size:20px}}
+.quiz .opt.picked{border-color:var(--accent);background:var(--accent-bg)}
 .drop .acts button{height:66px;border-radius:11px;background:var(--surface2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-size:12px;font-weight:600;color:var(--text)}
 .drop .acts button:first-child{background:var(--c);color:#fff}
 .drop .acts button:active{transform:scale(.97)}
@@ -637,7 +641,7 @@ function taskRow(t, showSub = true){
   return `<div class="row ${t.done ? "done" : ""}"><button class="check ${t.done ? "on" : ""}" data-act="toggle" data-id="${t.id}" aria-label="Erledigt">${ic("check", 15, 3)}</button>
     <button class="main" data-act="open" data-id="${t.id}" style="text-align:left"><div class="t">${esc(t.title || "Aufgabe")}</div>${showSub ? `<div class="s">${sb(s)}${t.text ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:50vw">${esc(t.text.slice(0, 60))}</span>` : ""}</div>` : ""}</button>${due}</div>`;
 }
-const anyRow = it => it.type === "task" ? taskRow(it) : it.type === "note" ? noteRow(it) : docRow(it);
+const anyRow = it => it.type === "task" ? taskRow(it) : it.type === "note" ? noteRow(it) : it.type === "test" ? testRow(it) : docRow(it);
 
 /* ---------- Views ---------- */
 const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
@@ -679,6 +683,8 @@ function vHome(){
     }
     h += `</div>`;
   }
+  const tests = S.items.filter(t => t.type === "test" && t.examDate && daysUntil(t.examDate) >= 0).sort((a, b) => a.examDate.localeCompare(b.examDate));
+  if (tests.length) h += `<div class="h-sec"><h2>Tests</h2><span class="sp"></span><button class="muted" data-act="newTest">＋ Test</button></div><div class="card">${tests.map(testRow).join("")}</div>`;
   const exams = docs().filter(d => d.kind === "klausur" && d.examDate && daysUntil(d.examDate) >= 0).sort((a, b) => a.examDate.localeCompare(b.examDate));
   if (exams.length){
     h += `<div class="h-sec"><h2>Klausuren</h2></div><div class="card">${exams.map(e => { const s = subj(e.subjectId), n = daysUntil(e.examDate), p = qProg(e);
@@ -699,7 +705,7 @@ function vHome(){
 }
 
 function binderList(){ const l = [...allSubjects()]; if (S.items.some(i => i.subjectId === "inbox")) l.unshift(INBOX); return l; }
-const FILTERS = [["all","Alles"],["blatt","Blätter"],["aufgaben","Aufgabenblätter"],["klausur","Klausuren"],["task","To-dos"],["note","Notizen"]];
+const FILTERS = [["all","Alles"],["test","Tests"],["blatt","Blätter"],["aufgaben","Aufgabenblätter"],["klausur","Klausuren"],["task","To-dos"],["note","Notizen"]];
 function vBinder(){
   const list = binderList();
   if (!list.length) return `<div class="card empty" style="margin-top:20px">Noch keine Mappe.<br><br><button class="btn primary" data-act="newSub">Mappe anlegen</button></div>`;
@@ -713,17 +719,19 @@ function vBinder(){
   const its = S.items.filter(i => i.subjectId === s.id), inT = its.filter(i => S.topicId === "all" || i.topicId === S.topicId);
   const tname = S.topicId !== "all" ? topics.find(t => t.id === S.topicId)?.name : "";
   h += `<div class="panel" id="panel" style="--c:${s.color}">
-    <div class="phead">${s.id === "inbox" ? `<span class="sb xl solid" style="--c:${s.color}">${ic("inbox", 24)}</span>` : sb(s, "solid xl")}<div style="min-width:0"><h1>${esc(s.full || s.short)}</h1><p>${lessons.map(l => `${DAYS[l.day].slice(0, 2)} ${l.start} · ${esc(l.room || "")}${l.teacher ? " · " + esc(l.teacher) : ""}`).join("<br>") || (s.id === "inbox" ? "Hier landet alles ohne Mappe." : "")}</p></div><span class="sp"></span>${s.id !== "inbox" ? `<button class="icbtn bordered" data-act="editSub" data-id="${s.id}" aria-label="Mappe bearbeiten">${ic("edit", 18)}</button>` : ""}</div>
-    <div class="drop" id="drop"><div class="acts"><button data-act="cam">${ic("camera", 22)}Scannen</button><button data-act="files">${ic("upload", 22)}Hochladen</button><button data-act="newtask">${ic("tasks", 22)}To-do</button><button data-act="newnote">${ic("note", 22)}Notiz</button></div>
+    <div class="phead">${s.id === "inbox" ? `<span class="sb xl solid" style="--c:${s.color}">${ic("inbox", 24)}</span>` : sb(s, "solid xl")}<div style="min-width:0"><h1>${esc(s.full || s.short)}</h1><p>${lessons.map(l => `${DAYS[l.day].slice(0, 2)} ${l.start} · ${esc(l.room || "")}${l.teacher ? " · " + esc(l.teacher) : ""}`).join("<br>") || (s.id === "inbox" ? "Hier landet alles ohne Mappe." : "")}</p></div><span class="sp"></span><div class="pacts"><button class="btn sm" data-act="binderPdf" aria-label="Mappe als PDF herunterladen">${ic("download", 16)}Mappe als PDF</button>${s.id !== "inbox" ? `<button class="icbtn bordered" data-act="editSub" data-id="${s.id}" aria-label="Mappe bearbeiten" style="width:34px;height:34px">${ic("edit", 17)}</button>` : ""}</div></div>
+    <div class="drop" id="drop"><div class="acts"><button data-act="cam">${ic("camera", 22)}Scannen</button><button data-act="files">${ic("upload", 22)}Datei</button><button data-act="newTest">${ic("target", 22)}Test</button><button data-act="newtask">${ic("tasks", 22)}To-do</button><button data-act="newnote">${ic("note", 22)}Notiz</button></div>
       <div class="hint">Wird abgelegt in <b>${esc(s.short)}${tname ? " › " + esc(tname) : ""}</b>${matchMedia("(pointer:fine)").matches ? " · Dateien auch per Drag & Drop" : ""}</div></div>`;
   if (s.id !== "inbox") h += `<div class="chips" style="margin-top:16px"><button class="chip ${S.topicId === "all" ? "on" : ""}" data-act="topic" data-id="all">${ic("folder", 15)}Alle <span class="n">${its.length}</span></button>${topics.map(t => `<button class="chip ${S.topicId === t.id ? "on" : ""}" data-act="topic" data-id="${t.id}">${ic("folder", 15)}${esc(t.name)} <span class="n">${its.filter(i => i.topicId === t.id).length}</span></button>`).join("")}${S.topicId !== "all" ? `<button class="chip dashed" data-act="editTopic" aria-label="Unterordner bearbeiten">${ic("edit", 14)}</button>` : ""}<button class="chip dashed" data-act="newTopic">${ic("plus", 15)}Unterordner</button></div>`;
-  const cnt = k => k === "all" ? inT.length : k === "task" || k === "note" ? inT.filter(i => i.type === k).length : inT.filter(i => i.type === "sheet" && i.kind === k).length;
+  const cnt = k => k === "all" ? inT.length : k === "task" || k === "note" || k === "test" ? inT.filter(i => i.type === k).length : inT.filter(i => i.type === "sheet" && i.kind === k).length;
   h += `<div class="chips" style="margin-top:10px">${FILTERS.map(([k, l]) => { const n = cnt(k); return (n || k === "all" || S.filter === k) ? `<button class="chip ${S.filter === k ? "on" : ""}" data-act="filter" data-f="${k}">${l}${n ? ` <span class="n">${n}</span>` : ""}</button>` : ""; }).join("")}</div>`;
   const f = S.filter;
   const tasks = inT.filter(i => i.type === "task" && (f === "all" || f === "task")).sort((a, b) => (a.done - b.done) || (a.due || "9999").localeCompare(b.due || "9999"));
   const ds = inT.filter(i => i.type === "sheet" && (f === "all" || i.kind === f)).sort((a, b) => b.created - a.created);
   const ns = inT.filter(i => i.type === "note" && (f === "all" || f === "note")).sort((a, b) => b.updated - a.updated);
+  const tsts = inT.filter(i => i.type === "test" && (f === "all" || f === "test")).sort((a, b) => (a.examDate || "9999").localeCompare(b.examDate || "9999"));
   let any = false;
+  if (tsts.length){ any = true; h += `<div class="h-sec" style="margin-top:18px"><h2 style="font-size:14px">Tests</h2></div><div class="card">${tsts.map(testRow).join("")}</div>`; }
   const showT = f === "all" ? tasks.filter(t => !t.done) : tasks;
   if (showT.length){ any = true; h += `<div class="h-sec" style="margin-top:18px"><h2 style="font-size:14px">To-dos</h2></div><div class="card">${showT.map(t => taskRow(t, false)).join("")}</div>`; }
   if (ds.length){ any = true; h += `<div class="h-sec" style="margin-top:18px"><h2 style="font-size:14px">Dokumente</h2></div><div class="card">${ds.map(docRow).join("")}</div>`; }
@@ -766,7 +774,7 @@ function renderSearch(){
   const toks = q.split(/\s+/).filter(Boolean), res = [];
   for (const it of S.items){
     const s = subj(it.subjectId);
-    const hay = [it.title, it.text, it.summary, it.transcript, (it.tags || []).join(" "), (it.questions || []).map(x => x.frage).join(" "), s.short, s.full].join("\n").toLowerCase();
+    const hay = [it.title, it.text, it.summary, it.transcript, (it.tags || []).join(" "), (it.questions || []).map(x => x.frage).join(" "), it.goals || "", s.short, s.full].join("\n").toLowerCase();
     if (!toks.every(t => hay.includes(t))) continue;
     const src = [it.text, it.summary, it.transcript].join(" ").replace(/\s+/g, " "), idx = src.toLowerCase().indexOf(toks[0]);
     const snip = idx >= 0 ? (idx > 40 ? "…" : "") + src.slice(Math.max(0, idx - 40), idx + 110) : (it.summary || it.text || "").slice(0, 110);
@@ -792,6 +800,8 @@ function vLearn(){
       <div class="sticky-composer"><div class="composer" style="margin:0"><textarea id="askIn" rows="1" placeholder="Frag mich alles zu deinen Unterlagen…"></textarea><button class="btn primary" data-act="askSend" aria-label="Senden">${ic(S.asking ? "stop" : "send", 20)}</button></div></div>`;
     return h;
   }
+  const tl = S.items.filter(i => i.type === "test").sort((a, b) => (a.examDate || "9999").localeCompare(b.examDate || "9999"));
+  h += `<div class="h-sec"><h2>Tests vorbereiten</h2><span class="sp"></span><button class="btn sm primary" data-act="newTest">${ic("plus", 15)}Neuer Test</button></div>` + (tl.length ? `<div class="card">${tl.map(testRow).join("")}</div>` : `<div class="card empty" style="font-size:14px">Schreib rein, was die Lehrerin für den Test angesagt hat – ich erkläre dir jedes Thema, mache einen Lernplan und einen Probetest mit Note.<br><br><button class="btn sm primary" data-act="newTest">${ic("target", 16)}Test vorbereiten</button></div>`);
   const ds = docs();
   const exams = ds.filter(d => d.kind === "klausur"), sheets = ds.filter(d => d.kind === "aufgaben"), un = ds.filter(d => !d.summary);
   const stats = ds.reduce((a, d) => { const p = qProg(d); a.n += p.n; a.ok += p.ok; return a; }, {n:0, ok:0});
@@ -848,14 +858,15 @@ function closeItem(){ flushSaves(); S.openId = null; $("#detail").hidden = true;
 function renderDetail(){
   const it = item(S.openId); if (!it){ closeItem(); return; }
   const s = subj(it.subjectId), k = it.type === "sheet" ? KIND[it.kind] || KIND.blatt : null;
-  const label = k ? k.l : it.type === "task" ? "Aufgabe" : "Notiz";
+  const label = k ? k.l : it.type === "task" ? "Aufgabe" : it.type === "test" ? "Test-Vorbereitung" : "Notiz";
   const keepScroll = $("#detail").scrollTop;
   let h = `<header class="appbar scrolled"><div class="in"><button class="icbtn" data-act="dclose" aria-label="Zurück">${ic("back", 22)}</button><div style="display:flex;align-items:center;gap:8px;min-width:0">${sb(s)}<span class="muted" style="font-weight:600;font-size:14px">${label}</span></div><span class="sp"></span><button class="icbtn" data-act="delitem" aria-label="Löschen" style="color:var(--bad)">${ic("trash", 20)}</button></div></header><main>`;
-  h += `<input class="titlein" data-f="title" value="${esc(it.title)}" placeholder="${it.type === "task" ? "Was ist zu tun?" : "Titel"}">`;
+  h += `<input class="titlein" data-f="title" value="${esc(it.title)}" placeholder="${it.type === "task" ? "Was ist zu tun?" : it.type === "test" ? "z. B. WBL-Test Kaufvertrag" : "Titel"}">`;
   const tps = topicsOf(s);
   h += `<div class="meta"><label class="f">Mappe<select data-f="subjectId">${subjectOptions(it.subjectId)}</select></label>${tps.length ? `<label class="f">Unterordner<select data-f="topicId">${topicOptions(s, it.topicId)}</select></label>` : ""}`;
   if (k) h += `<label class="f">Art<select data-f="kind">${Object.entries(KIND).map(([key, v]) => `<option value="${key}" ${key === it.kind ? "selected" : ""}>${v.l}</option>`).join("")}</select></label>${it.kind === "klausur" ? `<label class="f">Klausurtermin<input type="date" data-f="examDate" value="${esc(it.examDate || "")}"></label>` : ""}`;
   if (it.type === "task") h += `<label class="f">Fällig am<input type="date" data-f="due" value="${esc(it.due)}"></label>`;
+  if (it.type === "test") h += `<label class="f">Testtermin<input type="date" data-f="examDate" value="${esc(it.examDate || "")}"></label>`;
   h += `</div>`;
 
   if (it.type === "task"){
@@ -864,6 +875,7 @@ function renderDetail(){
       <label class="f">Details<textarea data-f="text" placeholder="Seite, Nummer, was genau…">${esc(it.text)}</textarea></label>`;
     if (it.fromId && item(it.fromId)) h += `<p style="margin-top:14px" class="muted">Aus: <button class="ref" data-act="open" data-id="${it.fromId}">${esc(item(it.fromId).title)}</button></p>`;
   }
+  if (it.type === "test") h += testDetail(it);
   if (it.type === "note"){
     h += `<label class="f">Notiz<textarea data-f="text" style="min-height:55vh" placeholder="Schreib einfach drauf los…">${esc(it.text)}</textarea></label>`;
     if (AI.on && it.text && it.text.length > 40) h += `<details class="x"><summary>${ic("eye", 16)}Formatierte Ansicht</summary><div class="card pad ai-out">${md(it.text)}</div></details>`;
@@ -947,7 +959,7 @@ function quizPanel(it){
 function docChatPanel(it){
   const c = it.chat || [];
   let h = `<div class="card toolpanel"><div class="chatlog" style="margin-top:0">`;
-  if (!c.length) h += `<div class="sugg" style="margin-top:0">${["Erklär mir Aufgabe 1 einfach","Was kommt hier in der Klausur dran?","Gib mir ein Beispiel aus dem Betrieb"].map(s => `<button data-act="dsugg">${esc(s)}</button>`).join("")}</div>`;
+  if (!c.length) h += `<div class="sugg" style="margin-top:0">${(it.type === "test" ? ["Was ist am wichtigsten für den Test?","Frag mich mündlich ab","Erklär mir das schwerste Thema nochmal"] : ["Erklär mir Aufgabe 1 einfach","Was kommt hier in der Klausur dran?","Gib mir ein Beispiel aus dem Betrieb"]).map(s => `<button data-act="dsugg">${esc(s)}</button>`).join("")}</div>`;
   h += c.map((m, i) => m.role === "user" ? `<div class="msg u">${esc(m.content)}</div>` : `<div class="msg a ai-out" ${i === c.length - 1 ? `id="live-dc-${it.id}"` : ""}>${i === c.length - 1 && S.live["dc-" + it.id] !== undefined ? liveOrSaved("dc-" + it.id) : md(m.content)}</div>`).join("");
   h += `</div><div class="composer"><textarea id="dcIn" rows="1" placeholder="Frag was zu diesem Dokument…"></textarea><button class="btn primary" data-act="dcSend" aria-label="Senden">${ic("send", 20)}</button></div>${c.length ? `<button class="btn sm ghost" style="margin-top:8px" data-act="dcClear">${ic("refresh", 15)}Chat leeren</button>` : ""}</div>`;
   return h;
@@ -1291,6 +1303,290 @@ async function exportPdf(it){
   } catch (e){ console.error(e); unbusy(); toast("PDF konnte nicht erstellt werden"); }
 }
 
+/* ---------- Ganze Mappe als PDF ---------- */
+const pdfSafe = t => String(t ?? "").replace(/[“”„«»]/g, '"').replace(/[‘’‚]/g, "'").replace(/[–—]/g, "-").replace(/…/g, "...").replace(/[•·]/g, "-").replace(/→/g, "->").replace(/[^\x09\x0A\x0D\x20-\x7E\xA0-\xFF]/g, "");
+const hexRgb = h => { const m = String(h).replace("#", ""); return [0, 2, 4].map(i => parseInt(m.slice(i, i + 2), 16) || 0); };
+function binderPdfDialog(){
+  const s = subj(S.subjectId), tp = S.topicId !== "all" ? topicsOf(s).find(t => t.id === S.topicId) : null;
+  const all = S.items.filter(i => i.subjectId === s.id);
+  const cnt = (arr, t) => arr.filter(i => i.type === t).length;
+  S._pdfScope = tp ? "topic" : "all";
+  const fillN = all.filter(i => i.type === "sheet" && hasFills(i)).length;
+  openModal(`<h3>${esc(s.short)} als PDF</h3><p class="sub">Alles aus der Mappe in einer Datei – zum Speichern, Drucken oder Abgeben.</p>
+    ${tp ? `<label class="f">Umfang</label><div class="seg" id="pdfScope" style="margin-top:6px"><button data-act="pdfScope" data-v="topic" class="on">Nur „${esc(tp.name)}“</button><button data-act="pdfScope" data-v="all">Ganze Mappe</button></div>` : ""}
+    <label class="chk"><input type="checkbox" id="pxCover" checked> Deckblatt mit Inhaltsverzeichnis</label>
+    <label class="chk"><input type="checkbox" id="pxDocs" checked> Blätter, Aufgabenblätter & Klausuren (${cnt(all, "sheet")})</label>
+    ${fillN ? `<label class="chk"><input type="checkbox" id="pxFilled" checked> Ausgefüllte Version verwenden (${fillN} ausgefüllt)</label>` : ""}
+    <label class="chk"><input type="checkbox" id="pxNotes" checked> Notizen & Lernzettel (${cnt(all, "note")})</label>
+    <label class="chk"><input type="checkbox" id="pxTodos" ${cnt(all, "task") ? "checked" : ""}> To-do-Liste (${cnt(all, "task")})</label>
+    <div class="mact"><button class="btn" data-act="mclose">Abbrechen</button><button class="btn primary" data-act="pdfBinderGo">${ic("download", 17)}PDF erstellen</button></div>`);
+}
+async function exportBinderPdf(o){
+  const s = subj(S.subjectId), tp = o.scope === "topic" ? topicsOf(s).find(t => t.id === S.topicId) : null;
+  const its = S.items.filter(i => i.subjectId === s.id && (!tp || i.topicId === tp.id));
+  const want = i => (i.type === "sheet" && o.docs && (i.pages || []).length) || (i.type === "note" && o.notes && (i.text || "").trim());
+  const tl = tp ? [tp] : topicsOf(s), groups = [];
+  for (const t of tl) groups.push({name:t.name, items:its.filter(i => i.topicId === t.id && want(i)).sort((a, b) => a.created - b.created)});
+  if (!tp) groups.push({name: tl.length ? "Ohne Unterordner" : "", items:its.filter(i => (!i.topicId || !tl.find(t => t.id === i.topicId)) && want(i)).sort((a, b) => a.created - b.created)});
+  const gs = groups.filter(g => g.items.length);
+  const tasks = o.todos ? its.filter(i => i.type === "task").sort((a, b) => (a.done - b.done) || (a.due || "9999").localeCompare(b.due || "9999")) : [];
+  if (!gs.length && !tasks.length){ toast("In dieser Mappe ist noch nichts zum Exportieren"); return; }
+  busy("Mappe wird als PDF zusammengestellt…");
+  try {
+    await Promise.all([ensureJsPdf(), ensureHandFont()]);
+    const {jsPDF} = window.jspdf, pdf = new jsPDF({unit:"mm", format:"a4", compress:true});
+    const [cr, cg, cb] = hexRgb(s.color), title = s.short + (tp ? " – " + tp.name : "");
+    let pageUsed = false; // Seite 1 existiert schon
+    const addPage = (land = false) => { if (!pageUsed && !land){ pageUsed = true; return 1; } if (!pageUsed && land){ pdf.deletePage(1); pdf.addPage("a4", "landscape"); pageUsed = true; return 1; } pdf.addPage("a4", land ? "landscape" : "portrait"); return pdf.getNumberOfPages(); };
+    const footer = () => { pdf.setFont("helvetica", "normal"); pdf.setFontSize(8.5); pdf.setTextColor(140); pdf.text(pdfSafe(`${s.short} · ${S.me.name} · ${S.me.klasse}`), 20, 289); pdf.text(String(pdf.getNumberOfPages()), 190, 289, {align:"right"}); pdf.setTextColor(0); };
+    const nEntries = gs.reduce((a, g) => a + g.items.length + (g.name ? 1 : 0), 0) + (tasks.length ? 1 : 0);
+    let tocPages = [];
+    if (o.cover){ tocPages.push(addPage()); const extra = Math.max(0, Math.ceil((nEntries - 18) / 38)); for (let k = 0; k < extra; k++) tocPages.push(addPage()); }
+    const toc = [];
+    let done = 0; const totalItems = gs.reduce((a, g) => a + g.items.length, 0);
+    for (const g of gs){
+      if (g.name) toc.push({group:g.name});
+      for (const it of g.items){
+        busy(`Mappe wird als PDF zusammengestellt… ${++done}/${totalItems}`);
+        let start = null;
+        if (it.type === "sheet"){
+          for (const pid of it.pages){
+            const bmp = await bitmapFor(pid), F = o.filled && it.fillOn !== false ? it.fills?.[pid] : null;
+            const full = renderFilled(bmp, F, it.fillStyle, false), sc = Math.min(1, 1654 / Math.min(full.width, full.height));
+            let c = full; if (sc < 1){ c = document.createElement("canvas"); c.width = Math.round(full.width * sc); c.height = Math.round(full.height * sc); c.getContext("2d").drawImage(full, 0, 0, c.width, c.height); }
+            const land = c.width > c.height, pw = land ? 297 : 210, ph = land ? 210 : 297, p = addPage(land); if (start == null) start = p;
+            const r = Math.min(pw / c.width, ph / c.height), w = c.width * r, h = c.height * r;
+            pdf.addImage(c.toDataURL("image/jpeg", .85), "JPEG", (pw - w) / 2, (ph - h) / 2, w, h, undefined, "FAST");
+          }
+        } else {
+          start = addPage(); let y = 24;
+          pdf.setFillColor(cr, cg, cb); pdf.rect(20, 15, 18, 1.6, "F");
+          pdf.setFont("helvetica", "bold"); pdf.setFontSize(17); pdf.setTextColor(20);
+          for (const l of pdf.splitTextToSize(pdfSafe(it.title || "Notiz"), 170)){ pdf.text(l, 20, y); y += 7.5; }
+          pdf.setFont("helvetica", "normal"); pdf.setFontSize(9.5); pdf.setTextColor(120); pdf.text(pdfSafe(`Notiz · ${s.short} · ${new Date(it.created).toLocaleDateString("de-DE")}`), 20, y); y += 9; pdf.setTextColor(30);
+          for (const raw of String(it.text).split("\n")){
+            let line = raw.replace(/\*\*(.+?)\*\*/g, "$1").replace(/`([^`]+)`/g, "$1").replace(/\[\[[a-z0-9]+\]\]/g, "");
+            let bold = false, ind = 0, size = 11;
+            if (/^#{1,4}\s+/.test(line)){ line = line.replace(/^#{1,4}\s+/, ""); bold = true; size = 13; y += 2; }
+            else if (/^\s*[-*•]\s+/.test(line)){ line = "-  " + line.replace(/^\s*[-*•]\s+/, ""); ind = 3; }
+            else if (/^-{3,}$/.test(line.trim())) line = "";
+            pdf.setFont("helvetica", bold ? "bold" : "normal"); pdf.setFontSize(size);
+            const parts = line.trim() ? pdf.splitTextToSize(pdfSafe(line), 170 - ind) : [""];
+            for (const [k, pt] of parts.entries()){
+              if (y > 278){ footer(); addPage(); y = 22; pdf.setFont("helvetica", bold ? "bold" : "normal"); pdf.setFontSize(size); pdf.setTextColor(30); }
+              pdf.text(pt, 20 + (k ? ind + 3 : ind), y); y += size * .47 + (pt ? 0 : -1.5);
+            }
+          }
+          footer();
+        }
+        pdf.outline?.add(null, pdfSafe(it.title || "Eintrag"), {pageNumber:start});
+        toc.push({title:it.title || (it.type === "note" ? "Notiz" : "Blatt"), kind: it.type === "note" ? "Notiz" : (KIND[it.kind] || KIND.blatt).l, page:start, date:it.created, filled: o.filled && hasFills(it)});
+      }
+    }
+    if (tasks.length){
+      const start = addPage(); let y = 24;
+      pdf.setFillColor(cr, cg, cb); pdf.rect(20, 15, 18, 1.6, "F");
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(17); pdf.setTextColor(20); pdf.text("To-dos", 20, y); y += 11;
+      for (const t of tasks){
+        if (y > 275){ footer(); addPage(); y = 22; }
+        pdf.setDrawColor(120); pdf.setLineWidth(.35); pdf.rect(20, y - 3.6, 4.2, 4.2);
+        if (t.done){ pdf.setDrawColor(21, 128, 61); pdf.setLineWidth(.7); pdf.line(20.8, y - 1.5, 21.9, y - .2); pdf.line(21.9, y - .2, 23.6, y - 3); }
+        pdf.setFont("helvetica", "normal"); pdf.setFontSize(11); pdf.setTextColor(t.done ? 150 : 25);
+        const ls = pdf.splitTextToSize(pdfSafe(t.title || "Aufgabe"), 130);
+        ls.forEach((l, k) => pdf.text(l, 28, y + k * 5.2));
+        if (t.due){ pdf.setFontSize(9.5); if (t.done) pdf.setTextColor(160); else if (daysUntil(t.due) < 0) pdf.setTextColor(200, 50, 50); else pdf.setTextColor(110); pdf.text(new Date(t.due + "T12:00").toLocaleDateString("de-DE"), 190, y, {align:"right"}); }
+        y += ls.length * 5.2 + 3;
+      }
+      footer(); pdf.outline?.add(null, "To-dos", {pageNumber:start}); toc.push({title:"To-do-Liste", kind:"Liste", page:start});
+    }
+    if (o.cover){
+      let ti = 0;
+      for (const [pi, pg] of tocPages.entries()){
+        pdf.setPage(pg); let y;
+        if (pi === 0){
+          pdf.setFillColor(cr, cg, cb); pdf.rect(0, 0, 210, 72, "F");
+          pdf.setTextColor(255); pdf.setFont("helvetica", "bold"); pdf.setFontSize(40); pdf.text(pdfSafe(s.short), 20, 36);
+          pdf.setFont("helvetica", "normal"); pdf.setFontSize(14); pdf.text(pdfSafe(s.full || ""), 20, 47);
+          if (tp){ pdf.setFont("helvetica", "bold"); pdf.setFontSize(13); pdf.text(pdfSafe("Unterordner: " + tp.name), 20, 58); }
+          pdf.setTextColor(30); pdf.setFont("helvetica", "normal"); pdf.setFontSize(11.5);
+          pdf.text(pdfSafe(`Name: ${S.me.name}`), 20, 86); pdf.text(pdfSafe(`Klasse: ${S.me.klasse}`), 85, 86); pdf.text(`Stand: ${deDate()}`, 190, 86, {align:"right"});
+          pdf.setDrawColor(220); pdf.setLineWidth(.3); pdf.line(20, 92, 190, 92);
+          pdf.setFont("helvetica", "bold"); pdf.setFontSize(15); pdf.text("Inhalt", 20, 104); y = 115;
+        } else { pdf.setFont("helvetica", "bold"); pdf.setFontSize(15); pdf.setTextColor(30); pdf.text("Inhalt (Fortsetzung)", 20, 24); y = 36; }
+        while (ti < toc.length && y < 278){
+          const e = toc[ti++];
+          if (e.group){ y += 2; pdf.setFont("helvetica", "bold"); pdf.setFontSize(11); pdf.setTextColor(cr, cg, cb); pdf.text(pdfSafe(e.group.toUpperCase()), 20, y); y += 7; continue; }
+          pdf.setFont("helvetica", "normal"); pdf.setFontSize(11); pdf.setTextColor(25);
+          let t = pdfSafe(e.title); while (pdf.getTextWidth(t) > 112 && t.length > 4) t = t.slice(0, -2);
+          if (t !== pdfSafe(e.title)) t = t.replace(/\s*\S?$/, "") + "...";
+          pdf.text(t, 20, y);
+          const tw = pdf.getTextWidth(t); pdf.setFontSize(8.5); pdf.setTextColor(130);
+          const meta = pdfSafe(e.kind + (e.filled ? " (ausgefüllt)" : "")); pdf.text(meta, 20 + tw + 2.5, y);
+          const mw = pdf.getTextWidth(meta); pdf.setTextColor(200); let dots = ""; const dx0 = 20 + tw + 2.5 + mw + 2, dx1 = 180;
+          if (dx1 > dx0 + 3){ while (pdf.getTextWidth(dots + " .") < dx1 - dx0) dots += " ."; pdf.text(dots, dx0, y); }
+          pdf.setFontSize(11); pdf.setTextColor(25); pdf.text(String(e.page), 190, y, {align:"right"});
+          pdf.link(18, y - 4.5, 174, 6.5, {pageNumber:e.page});
+          y += 7;
+        }
+        pdf.setFont("helvetica", "normal"); pdf.setFontSize(8.5); pdf.setTextColor(140); pdf.text(pdfSafe(`${s.short} · ${S.me.name} · ${S.me.klasse}`), 20, 289); pdf.text(String(pg), 190, 289, {align:"right"}); pdf.setTextColor(0);
+      }
+    }
+    pdf.setProperties({title: pdfSafe(`${title} – ${S.me.name}`), author: pdfSafe(S.me.name), subject: pdfSafe(s.full || s.short)});
+    const blob = pdf.output("blob"); unbusy();
+    const name = `${title} – Mappe ${deDate()}`.replace(/[\\/:*?"<>|]+/g, "").trim() + ".pdf";
+    if (await saveFile(name, blob)) toast(`PDF gespeichert (${pdf.getNumberOfPages()} Seiten)`);
+  } catch (e){ console.error(e); unbusy(); toast("PDF konnte nicht erstellt werden"); }
+}
+
+/* ---------- Test-Vorbereitung: Lehrer-Angaben → Erklären, Lernplan, Probetest ---------- */
+const noteOf = pct => pct >= 92 ? 1 : pct >= 81 ? 2 : pct >= 67 ? 3 : pct >= 50 ? 4 : pct >= 30 ? 5 : 6;
+const NOTE_TXT = ["", "sehr gut", "gut", "befriedigend", "ausreichend", "mangelhaft", "ungenügend"];
+function newTest(){
+  const it = newItem("test", {title:"", goals:"", themen:[], plan:"", test:null, history:[], examDate:""});
+  openItem(it.id); setTimeout(() => $('#detail [data-f="title"]')?.focus(), 80);
+}
+function testRow(it){
+  const s = subj(it.subjectId), th = it.themen || [], ok = th.filter(t => t.ok).length, last = (it.history || []).slice(-1)[0];
+  const n = it.examDate ? daysUntil(it.examDate) : null;
+  return `<button class="row" data-act="open" data-id="${it.id}"><div class="thumb" style="background:var(--accent-bg);color:var(--accent)">${ic("target", 22)}</div>
+    <div class="main"><div class="t">${esc(it.title || "Test-Vorbereitung")}</div><div class="s">${sb(s)}${th.length ? `<span>${ok}/${th.length} Themen sitzen</span>` : `<span>noch kein Lernplan</span>`}${last ? `·<span>Probetest: Note ${last.note}</span>` : ""}</div></div>
+    ${n != null && n >= 0 ? `<div class="cd"><b>${n}</b><small>${n === 1 ? "Tag" : "Tage"}</small></div>` : ""}</button>`;
+}
+function testContext(it, max = 30000){
+  const s = subj(it.subjectId), tp = topicsOf(s).find(t => t.id === it.topicId);
+  let c = `Test/Klausur: "${it.title || "Test"}" im Fach ${s.short}${s.full ? " – " + s.full : ""}${tp ? ", Thema/Unterordner: " + tp.name : ""}.${it.examDate ? " Termin: " + it.examDate + "." : ""}\n`;
+  c += `DAS HAT DIE LEHRERIN ANGESAGT (das muss Lukas können):\n"""\n${(it.goals || "").slice(0, 6000)}\n"""\n`;
+  if (it.themen?.length) c += `Themenliste: ${it.themen.map(t => t.titel + (t.ok ? " (sitzt)" : "")).join("; ")}\n`;
+  // passende Unterlagen aus derselben Mappe (bzw. demselben Unterordner) als Wissensbasis
+  const rel = S.items.filter(i => i.subjectId === it.subjectId && i.id !== it.id && (i.type === "sheet" || i.type === "note") && (!it.topicId || !i.topicId || i.topicId === it.topicId)).sort((a, b) => b.updated - a.updated);
+  let size = 0, parts = [];
+  for (const d of rel){
+    let p = `--- ${d.type === "note" ? "Notiz" : (KIND[d.kind] || KIND.blatt).l}: ${d.title}\n`;
+    if (d.summary) p += `Zusammenfassung: ${d.summary}\n`;
+    const body = d.transcript || d.text || ""; if (body) p += body.slice(0, 5000) + "\n";
+    if (size + p.length > max) break; parts.push(p); size += p.length;
+  }
+  if (parts.length) c += `\nUNTERLAGEN AUS DER MAPPE (Unterricht):\n${parts.join("\n")}`;
+  return c;
+}
+async function aiTestPlan(it){
+  if (!(it.goals || "").trim()){ toast("Schreib erst rein, was die Lehrerin gesagt hat"); $('#detail textarea[data-f="goals"]')?.focus(); return; }
+  const key = "plan-" + it.id; S.live[key] = ""; renderDetail();
+  try {
+    const r = await AI.json(`${TUTOR}\n\n${testContext(it)}\nHeute ist ${DAYS[new Date().getDay()]}, ${today()}.
+Zerlege die Angaben der Lehrerin in einzelne Lernthemen (genau das, was im Test drankommt – nichts weglassen, nichts erfinden) und mach einen realistischen Lernplan${it.examDate ? ` bis zum Test am ${it.examDate}` : " für die nächsten Tage"}.
+Antworte NUR mit JSON: {"themen":[{"titel":"kurzer Thementitel","was":"1 Satz: was genau ich dazu können muss"}],"plan":"Lernplan als Markdown: pro Tag eine Zeile mit 1–3 konkreten Punkten (z. B. '**Mo 24.11.:** Thema X erklären lassen + Quiz'), am Vortag Wiederholung + Probetest"}`);
+    const old = it.themen || [];
+    it.themen = (r?.themen || []).filter(t => t && t.titel).map(t => { const o = old.find(x => x.titel === String(t.titel)); return o || {titel:String(t.titel), was:String(t.was || ""), explain:"", ok:false}; });
+    it.plan = String(r?.plan || "");
+    if (!it.title) it.title = `${subj(it.subjectId).short}-Test`;
+    await saveItem(it);
+  } catch (e){ const m = aiErr(e); if (m) toast(m); }
+  delete S.live[key]; renderDetail();
+}
+async function aiTopicExplain(it, i){
+  const t = it.themen[i];
+  try { t.explain = await streamAI(`tx-${it.id}-${i}`, `${TUTOR}\n\n${testContext(it, 20000)}\nErklär mir das Thema „${t.titel}“ (${t.was}) so, dass ich es im Test sicher kann:
+### Kurz erklärt
+(einfach, 3–6 Sätze, Fachbegriffe **fett**)
+### Beispiel
+(aus Betrieb/Alltag)
+### So kommt es im Test
+(1 typische Testfrage + kurze Musterantwort)
+### Merksatz
+(1 Satz)
+Stütze dich auf die Unterlagen aus der Mappe, wenn sie dazu etwas enthalten.`); await saveItem(it); }
+  catch (e){ const m = aiErr(e); if (m) toast(m); }
+  renderDetail();
+}
+async function aiMakeTest(it){
+  if (!(it.goals || "").trim()){ toast("Schreib erst rein, was die Lehrerin gesagt hat"); return; }
+  const key = "mk-" + it.id; S.live[key] = ""; renderDetail();
+  try {
+    const focus = it.test?.graded?.wiederholen?.length ? `Lege einen Schwerpunkt auf diese Themen, die beim letzten Mal schwach waren: ${it.test.graded.wiederholen.join(", ")}.` : "";
+    const r = await AI.json(`${testContext(it)}\nErstelle einen kurzen Probetest, wie ihn die Lehrerin zu genau diesen Angaben stellen würde (Berufsschul-Niveau, prüfungsnah). ${focus}
+8 Fragen: 4 Multiple-Choice (je 1 Punkt) und 4 offene Fragen (je 2–4 Punkte: erklären, nennen, unterscheiden, Fallbeispiel oder Rechnung). Alle Themen abdecken.
+Antworte NUR mit JSON: {"fragen":[{"typ":"mc","thema":"Thema","frage":"...","optionen":["A","B","C","D"],"richtig":Index 0-3,"erklaerung":"1–2 Sätze","punkte":1},{"typ":"frei","thema":"Thema","frage":"...","musterloesung":"vollständige Musterlösung","punkte":3}]}`);
+    const fr = (r?.fragen || []).filter(q => q && q.frage).map(q => q.typ === "mc" && Array.isArray(q.optionen) && q.optionen.length >= 2
+      ? {typ:"mc", thema:String(q.thema || ""), frage:String(q.frage), optionen:q.optionen.slice(0, 4).map(String), richtig:Math.max(0, Math.min(3, +q.richtig || 0)), erklaerung:String(q.erklaerung || ""), punkte:1}
+      : {typ:"frei", thema:String(q.thema || ""), frage:String(q.frage), musterloesung:String(q.musterloesung || ""), punkte:Math.max(1, Math.min(6, +q.punkte || 2))});
+    if (!fr.length) throw {code:"invalid_json"};
+    it.test = {fragen:fr, antworten:fr.map(() => null), graded:null, created:Date.now()};
+    await saveItem(it);
+  } catch (e){ const m = aiErr(e); if (m) toast(m); }
+  delete S.live[key]; renderDetail();
+}
+async function aiGradeTest(it){
+  const T = it.test, key = "gr-" + it.id; if (!T) return;
+  const open = T.fragen.map((q, i) => ({q, i})).filter(x => x.q.typ === "frei");
+  if (T.fragen.some((q, i) => T.antworten[i] == null || T.antworten[i] === "") && !(await confirmBox("Noch nicht alles beantwortet", "Trotzdem abgeben? Unbeantwortete Fragen zählen 0 Punkte.", "Abgeben", false))) return;
+  S.live[key] = ""; renderDetail();
+  try {
+    let bew = [], fazit = "", wied = [];
+    const answered = open.filter(x => String(T.antworten[x.i] || "").trim());
+    if (answered.length || open.length){
+      const r = await AI.json(`${TUTOR}\n\n${testContext(it, 12000)}\nBewerte die offenen Antworten aus Lukas' Probetest fair wie seine Lehrerin.
+${open.map(x => `Frage ${x.i + 1} (${x.q.punkte} P., Thema: ${x.q.thema}): ${x.q.frage}\nMusterlösung: ${x.q.musterloesung}\nAntwort von Lukas: """${String(T.antworten[x.i] || "").slice(0, 3000) || "(keine Antwort)"}"""`).join("\n\n")}
+Multiple-Choice-Ergebnis: ${T.fragen.map((q, i) => q.typ === "mc" ? `Frage ${i + 1} (${q.thema}) ${T.antworten[i] === q.richtig ? "richtig" : "falsch"}` : "").filter(Boolean).join("; ")}
+Antworte NUR mit JSON: {"bewertungen":[{"nr":Fragennummer,"punkte":erreichte Punkte,"feedback":"2–4 Sätze: was gut war, was fehlt, wie es richtig wäre"}],"fazit":"2–3 ermutigende Sätze zum Gesamtstand","wiederholen":["Themen, die er nochmal lernen muss"]}`);
+      bew = r?.bewertungen || []; fazit = String(r?.fazit || ""); wied = (r?.wiederholen || []).map(String);
+    }
+    let pts = 0, max = 0;
+    T.fragen.forEach((q, i) => {
+      max += q.punkte;
+      if (q.typ === "mc"){ q.got = T.antworten[i] === q.richtig ? 1 : 0; q.feedback = (q.got ? "Richtig. " : "Falsch – richtig ist „" + q.optionen[q.richtig] + "“. ") + q.erklaerung; }
+      else { const b = bew.find(x => +x.nr === i + 1) || {}; q.got = Math.max(0, Math.min(q.punkte, +b.punkte || 0)); q.feedback = String(b.feedback || (String(T.antworten[i] || "").trim() ? "" : "Keine Antwort.")); }
+      pts += q.got;
+    });
+    const pct = max ? Math.round(pts / max * 100) : 0, note = noteOf(pct);
+    T.graded = {punkte:pts, max, pct, note, fazit, wiederholen:wied};
+    it.history = [...(it.history || []), {date:Date.now(), punkte:pts, max, note}].slice(-20);
+    for (const th of it.themen || []) if (wied.some(w => w.toLowerCase().includes(th.titel.toLowerCase()) || th.titel.toLowerCase().includes(w.toLowerCase()))) th.ok = false;
+    await saveItem(it); toast(`Note ${note} – ${pts}/${max} Punkte`);
+  } catch (e){ const m = aiErr(e); if (m) toast(m); }
+  delete S.live[key]; renderDetail();
+}
+function testDetail(it){
+  let h = "";
+  const n = it.examDate ? daysUntil(it.examDate) : null;
+  if (n != null && n >= 0) h += `<div class="notice" style="margin-top:14px">${ic("calendar", 22)}<div><b>${n === 0 ? "Test ist heute!" : n === 1 ? "Test ist morgen" : `Noch ${n} Tage bis zum Test`}</b><small>${new Date(it.examDate + "T12:00").toLocaleDateString("de-DE", {weekday:"long", day:"numeric", month:"long"})}</small></div></div>`;
+  h += `<label class="f">Was muss ich können? (laut Lehrer/in)<textarea data-f="goals" style="min-height:140px" placeholder="Schreib rein, was angesagt wurde – z. B.&#10;- Zustandekommen eines Kaufvertrags erklären&#10;- Pflichten von Käufer und Verkäufer&#10;- Anfrage und Angebot unterscheiden&#10;- Mängelarten nennen">${esc(it.goals || "")}</textarea></label>`;
+  if (!AI.on) return h + aiSetupCard("Dann erkläre ich dir jedes Thema, mache dir einen Lernplan bis zum Test und einen Probetest mit Note.");
+  const planBusy = S.live["plan-" + it.id] !== undefined;
+  h += `<button class="btn primary block lg" style="margin-top:12px" data-act="tPlan" ${planBusy ? "disabled" : ""}>${planBusy ? thinking("erstelle Lernplan") : ic("sparkle", 18) + (it.themen?.length ? "Lernplan aktualisieren" : "Erklären & Lernplan erstellen")}</button>`;
+  const th = it.themen || [];
+  if (th.length){
+    const ok = th.filter(t => t.ok).length;
+    h += `<div class="h-sec"><h2>Das musst du können</h2><span class="sp"></span><span class="muted">${ok}/${th.length} sitzen</span></div><div class="progress"><i style="width:${ok / th.length * 100}%"></i></div>`;
+    h += th.map((t, i) => { const key = `tx-${it.id}-${i}`, live = S.live[key] !== undefined, open = S.topicOpen === i || live;
+      return `<div class="card qcard ${t.ok ? "richtig" : ""}"><div class="qhead"><span class="qnr">${i + 1}</span><b style="flex:1;font-size:15px">${esc(t.titel)}</b>${t.ok ? `<span class="badge ok">${ic("check", 13, 3)}sitzt</span>` : ""}</div>
+        ${t.was ? `<div class="muted" style="font-size:14px;margin-top:6px">${esc(t.was)}</div>` : ""}
+        <div class="qacts"><button class="btn sm ${t.explain ? "" : "soft"}" data-act="tExplain" data-i="${i}" ${live ? "disabled" : ""}>${ic("bulb", 15)}${t.explain ? (open ? "Zuklappen" : "Erklärung") : "Erklär mir das"}</button><button class="btn sm ${t.ok ? "ghost" : ""}" data-act="tOk" data-i="${i}">${ic("check", 15, 2.6)}${t.ok ? "Doch noch nicht" : "Sitzt"}</button></div>
+        ${open && (t.explain || live) ? `<div class="fb" style="background:var(--surface2)"><div class="ai-out" id="live-${key}">${liveOrSaved(key, t.explain)}</div>${t.explain && !live ? `<button class="btn sm ghost" style="margin-top:6px" data-act="tExplainAgain" data-i="${i}">${ic("refresh", 14)}Anders erklären</button>` : ""}</div>` : ""}</div>`; }).join("");
+    if (it.plan) h += `<details class="x" ${S.planOpen ? "open" : ""}><summary data-act="planToggle">${ic("chev", 16)}Lernplan bis zum Test</summary><div class="card pad ai-out">${md(it.plan)}</div></details>`;
+  }
+  // Probetest
+  const T = it.test, mk = S.live["mk-" + it.id] !== undefined, gr = S.live["gr-" + it.id] !== undefined;
+  h += `<div class="h-sec"><h2>Probetest</h2><span class="sp"></span>${(it.history || []).length ? `<span class="muted">${it.history.length}× gemacht · zuletzt Note ${it.history[it.history.length - 1].note}</span>` : ""}</div>`;
+  if (mk) h += `<div class="card toolpanel">${thinking("Test wird erstellt")}</div>`;
+  else if (!T) h += `<div class="card toolpanel"><p style="margin:0 0 12px">8 Fragen genau zu dem, was die Lehrerin angesagt hat – mit Punkten, Note und Erklärung.</p><button class="btn primary" data-act="tMake">${ic("target", 17)}Probetest starten</button></div>`;
+  else {
+    const G = T.graded;
+    if (G) h += `<div class="card pad" style="text-align:center"><div class="muted" style="font-size:13px;font-weight:600">ERGEBNIS</div><div style="font:800 44px var(--display);line-height:1.1;margin-top:4px">Note ${G.note}</div><div class="muted">${NOTE_TXT[G.note]} · ${G.punkte}/${G.max} Punkte (${G.pct} %)</div>${G.fazit ? `<p style="margin:12px 0 0;text-align:left">${esc(G.fazit)}</p>` : ""}${G.wiederholen?.length ? `<p style="margin:8px 0 0;text-align:left"><b>Nochmal lernen:</b> ${esc(G.wiederholen.join(", "))}</p>` : ""}<div class="mact" style="justify-content:center"><button class="btn primary" data-act="tMake">${ic("refresh", 16)}Neuer Probetest</button></div></div>`;
+    h += T.fragen.map((q, i) => {
+      const a = T.antworten[i], st = G ? (q.got >= q.punkte ? "richtig" : q.got > 0 ? "teilweise" : "falsch") : "";
+      let x = `<div class="card qcard ${st}"><div class="qhead"><span class="qnr">${i + 1}</span><span class="muted" style="font-size:12.5px;flex:1">${esc(q.thema)}</span><span class="badge ${st === "richtig" ? "ok" : st === "teilweise" ? "warn" : st ? "bad" : ""}">${G ? `${q.got}/${q.punkte} P.` : `${q.punkte} P.`}</span></div><div class="qtext">${md(q.frage)}</div>`;
+      if (q.typ === "mc") x += `<div class="quiz">${q.optionen.map((o, j) => { const cls = G ? (j === q.richtig ? "right" : j === a ? "wrong" : "") : j === a ? "picked" : ""; return `<button class="opt ${cls}" data-act="tPick" data-i="${i}" data-j="${j}" ${G ? "disabled" : ""}><span class="l">${"ABCD"[j]}</span>${esc(o)}</button>`; }).join("")}</div>`;
+      else x += G ? `<div class="fb" style="background:var(--surface2)"><div class="lbl" style="color:var(--muted)">Deine Antwort</div>${esc(a || "–")}</div>` : `<textarea data-ta="${i}" placeholder="Deine Antwort…" style="margin-top:10px;min-height:90px">${esc(a || "")}</textarea>`;
+      if (G && q.feedback) x += `<div class="fb ${st}"><div class="lbl">Feedback</div><div class="ai-out">${md(q.feedback)}</div></div>`;
+      if (G && q.typ === "frei" && q.musterloesung) x += `<details class="x"><summary>${ic("chev", 16)}Musterlösung</summary><div class="ai-out" style="padding:4px 2px">${md(q.musterloesung)}</div></details>`;
+      return x + `</div>`; }).join("");
+    if (!G) h += `<button class="btn primary block lg" style="margin-top:14px" data-act="tGrade" ${gr ? "disabled" : ""}>${gr ? thinking("korrigiere wie die Lehrerin") : ic("check", 18, 2.6) + "Abgeben & bewerten"}</button>`;
+  }
+  h += `<div class="h-sec"><h2>Fragen an den Tutor</h2></div>` + docChatPanel(it);
+  return h;
+}
+
 /* ---------- Image processing ---------- */
 const canvasBlob = (c, q = .86) => new Promise(r => c.toBlob(r, "image/jpeg", q));
 function makeThumb(c){ const w = 300, s = w / c.width, t = document.createElement("canvas"); t.width = w; t.height = Math.round(c.height * s); t.getContext("2d").drawImage(c, 0, 0, t.width, t.height); return t.toDataURL("image/jpeg", .7); }
@@ -1405,6 +1701,7 @@ async function doImport(files, {title = "", subjectId = "inbox", topicId = "", k
 
 /* ---------- KI-Funktionen ---------- */
 function docContext(it, max = 30000){
+  if (it.type === "test") return testContext(it, max);
   const s = subj(it.subjectId);
   let c = `Dokument: "${it.title}" (${(KIND[it.kind] || KIND.blatt).l}, Fach ${s.short}${s.full ? " – " + s.full : ""}).\n`;
   if (it.summary) c += `Zusammenfassung: ${it.summary}\n`;
@@ -1530,9 +1827,10 @@ function buildContext(scope){
   const its = S.items.filter(i => scope === "all" || i.subjectId === scope).sort((a, b) => b.updated - a.updated), parts = []; let size = 0;
   for (const it of its){
     const s = subj(it.subjectId), tp = topicsOf(s).find(t => t.id === it.topicId);
-    let p = `### [[${it.id}]] ${it.type === "sheet" ? (KIND[it.kind] || KIND.blatt).l : it.type === "task" ? "Aufgabe/To-do" : "Notiz"} · Mappe ${s.short}${tp ? " › " + tp.name : ""} · ${new Date(it.created).toLocaleDateString("de-DE")}\nTitel: ${it.title}\n`;
+    let p = `### [[${it.id}]] ${it.type === "sheet" ? (KIND[it.kind] || KIND.blatt).l : it.type === "task" ? "Aufgabe/To-do" : it.type === "test" ? "Test-Vorbereitung" : "Notiz"} · Mappe ${s.short}${tp ? " › " + tp.name : ""} · ${new Date(it.created).toLocaleDateString("de-DE")}\nTitel: ${it.title}\n`;
     if (it.type === "task") p += `Status: ${it.done ? "erledigt" : "offen"}${it.due ? ", fällig " + it.due : ""}\n`;
     if (it.examDate) p += `Klausurtermin: ${it.examDate}\n`;
+    if (it.goals) p += `Angesagter Teststoff: ${it.goals.slice(0, 2000)}\n`;
     if (it.summary) p += `Zusammenfassung: ${it.summary}\n`;
     if (it.questions?.length){ const pr = qProg(it); p += `Übungsstand: ${pr.ok}/${pr.n} richtig\n`; }
     if (it.transcript) p += `Text: ${it.transcript.slice(0, 6000)}\n`;
@@ -1605,6 +1903,7 @@ function addSheet(){
   openModal(`<h3>Ablegen${ctx ? " in " + esc(ctx.short) : ""}</h3>
     <button class="opt-row" data-act="cam"><span class="ib">${ic("camera", 21)}</span><span><b>Blatt scannen</b><small>Foto wird automatisch wie ein Scan aufbereitet</small></span></button>
     <button class="opt-row" data-act="files"><span class="ib">${ic("upload", 21)}</span><span><b>Fotos oder PDF hochladen</b><small>Blätter, Aufgabenblätter, Probeklausuren</small></span></button>
+    <button class="opt-row" data-act="newTest"><span class="ib">${ic("target", 21)}</span><span><b>Test vorbereiten</b><small>Lehrer-Angaben eingeben → Erklärungen, Lernplan, Probetest</small></span></button>
     <button class="opt-row" data-act="newtask"><span class="ib">${ic("tasks", 21)}</span><span><b>To-do / Hausaufgabe</b><small>Mit Fälligkeitsdatum</small></span></button>
     <button class="opt-row" data-act="newnote"><span class="ib">${ic("note", 21)}</span><span><b>Notiz</b><small>Gedanken, Mitschrift</small></span></button>`);
 }
@@ -1701,6 +2000,18 @@ const A = {
   fillEdit: () => { S.fillEdit = !S.fillEdit; const it = item(S.openId); if (!S.fillEdit && it) saveItem(it); renderDetail(); },
   fillToggle: async () => { const it = item(S.openId); it.fillOn = it.fillOn === false; S.fillEdit = false; await saveItem(it); renderDetail(); },
   fillStyle: async el => { const it = item(S.openId); it.fillStyle = el.dataset.s; await saveItem(it); renderDetail(); },
+  binderPdf: () => binderPdfDialog(),
+  newTest: () => { closeModal(); newTest(); },
+  tPlan: () => { const it = item(S.openId); flushSaves(); aiTestPlan(it); },
+  tExplain: el => { const it = item(S.openId), i = +el.dataset.i, t = it.themen[i]; if (t.explain){ S.topicOpen = S.topicOpen === i ? -1 : i; renderDetail(); } else { S.topicOpen = i; aiTopicExplain(it, i); } },
+  tExplainAgain: el => { const it = item(S.openId), i = +el.dataset.i; it.themen[i].explain = ""; S.topicOpen = i; aiTopicExplain(it, i); },
+  tOk: async el => { const it = item(S.openId), t = it.themen[+el.dataset.i]; t.ok = !t.ok; await saveItem(it); renderDetail(); },
+  planToggle: () => { S.planOpen = !S.planOpen; },
+  tMake: () => { const it = item(S.openId); flushSaves(); aiMakeTest(it); },
+  tPick: async el => { const it = item(S.openId); if (it.test.graded) return; it.test.antworten[+el.dataset.i] = +el.dataset.j; saveItemSoon(it); renderDetail(); },
+  tGrade: () => { const it = item(S.openId); flushSaves(); aiGradeTest(it); },
+  pdfScope: el => { S._pdfScope = el.dataset.v; $$("#pdfScope button").forEach(b => b.classList.toggle("on", b === el)); },
+  pdfBinderGo: () => { const o = {scope:S._pdfScope, cover:$("#pxCover").checked, docs:$("#pxDocs").checked, filled:$("#pxFilled") ? $("#pxFilled").checked : false, notes:$("#pxNotes").checked, todos:$("#pxTodos").checked}; closeModal(); exportBinderPdf(o); },
   pdf: () => { const it = item(S.openId); if (it) exportPdf(it); },
   zoomcv: el => { openModal(`<div class="zoomwrap"><img src="${el.toDataURL("image/jpeg", .9)}" alt=""></div><div class="mact"><button class="btn" data-act="zIn">Zoom</button><button class="btn primary" data-act="mclose">Schließen</button></div>`); },
   feSize: el => { const st = S._fe; if (!st) return; const d = +el.dataset.d; if (!d){ st.f.px = null; } else { const bmp = bmpCache.get(st.pid); const W = bmp ? bmp.width : 1600, H = bmp ? bmp.height : 2200; const cur = st.f.px ? st.f.px * W : fieldLayout(st.f, W, H, st.it.fillStyle, st.it.fills[st.pid]?.base).px; st.f.px = cur * (d > 0 ? 1.15 : .87) / W; } st.f.text = $("#feText").value; saveItemSoon(st.it); redrawPage(st.it, st.pid); },
@@ -1769,6 +2080,7 @@ document.addEventListener("click", e => { const el = e.target.closest("[data-act
 document.addEventListener("input", e => {
   const t = e.target;
   if (t.id === "q"){ S.query = t.value; renderSearch(); return; }
+  if (t.dataset?.ta != null && S.openId){ const it = item(S.openId); it.test.antworten[+t.dataset.ta] = t.value; saveItemSoon(it); return; }
   if (t.dataset?.qa != null && S.openId){ const it = item(S.openId); it.questions[+t.dataset.qa].answer = t.value; saveItemSoon(it); return; }
   const f = t.dataset?.f; if (!f || !S.openId || !t.closest("#detail")) return;
   const it = item(S.openId); if (!it) return;
