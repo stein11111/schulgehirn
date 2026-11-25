@@ -1756,8 +1756,14 @@ function voiceFor(c){
   const fem = /anna|helena|petra|marlene|vicki|katja|hedda|elke|sandy|shelley|flo|female|frau|amala|seraphina|katja/i, mal = /markus|yannick|hans|martin|stefan|conrad|viktor|reed|rocko|eddy|grandpa|male|mann|killian|florian/i;
   const want = c.female ? fem : mal;
   const pool = vs.filter(v => want.test(v.name)); const list = (pool.length ? pool : vs).sort((a, b) => good(b) - good(a));
-  return list[0] || null;
+  // einmal gewählte Stimme merken, damit sie bei jedem Video gleich bleibt
+  let key = "sg-voice-" + (c.female ? "f" : "m"), saved = null; try { saved = localStorage.getItem(key); } catch {}
+  const keep = saved && vs.find(v => v.name === saved); if (keep) return keep;
+  const pick = list[0] || null; if (pick) try { localStorage.setItem(key, pick.name); } catch {}
+  return pick;
 }
+// iPhone lädt die Gerätestimmen verzögert – vorher warten, sonst spricht der 1. Satz mit einer anderen Stimme
+async function voicesReady(){ for (let i = 0; i < 20 && !germanVoices().length; i++) await new Promise(r => setTimeout(r, 100)); }
 const sleepTok = (ms, tok) => new Promise(r => setTimeout(r, ms)).then(() => tok === V.tok);
 const V = {tok:0, s:null, idx:0, playing:false, rate:1, muted:false, subs:true, line:-1, rev:0, ans:false, cd:0, cur:null, end:false};
 function cleanSpeech(t){ return String(t || "").replace(/\*\*/g, "").replace(/[#*_`]/g, "").replace(/\bz\.\s?B\./g, "zum Beispiel").replace(/\bd\.\s?h\./g, "das heißt").replace(/\bu\.\s?a\./g, "unter anderem").replace(/§/g, "Paragraf ").replace(/€/g, " Euro"); }
@@ -1805,6 +1811,30 @@ async function geminiSpeech(text, who){
     return null;
   })().finally(() => ttsPending.delete(id));
   ttsPending.set(id, p); return p;
+}
+const geminiPossible = () => !TTSC && !SAMPLE && !!S.gkey && navigator.onLine;
+const videoLines = sc => sc.szenen.flatMap(x => (x.dialog || []).map(d => [cleanSpeech(d.text), d.wer]));
+// Alle Sätze mit der KI-Stimme erzeugen. Nur wenn ALLE da sind → KI-Stimme, sonst das ganze Video mit Gerätestimme.
+async function prepareVoices(tok){
+  const lines = videoLines(V.s); let k = 0, bad = false;
+  V.prep = {n:0, of:lines.length, wait:false}; renderVideo();
+  const one = async ([t, w]) => {
+    for (let tries = 0; tries < 4; tries++){
+      if (tok !== V.tok || V.prepSkip || bad) return false;
+      const b = await geminiSpeech(t, w); if (b) return true;
+      const wait = gttsBlockedUntil - Date.now();
+      if (!geminiPossible() || wait > 120000) return false; // Schlüssel/Modell geht gar nicht
+      V.prep.wait = true; renderVideo();
+      await new Promise(r => setTimeout(r, Math.max(2500, Math.min(wait, 62000))));
+      if (gttsBlockedUntil - Date.now() < 120000) gttsBlockedUntil = 0; V.prep.wait = false;
+    }
+    return false;
+  };
+  const worker = async () => { while (k < lines.length && !bad){ const l = lines[k++]; if (await one(l)){ V.prep.n++; if (tok === V.tok) renderVideo(); } else bad = true; } };
+  await Promise.all([worker(), worker(), worker()]);
+  const skip = V.prepSkip; V.prep = null; V.prepSkip = false;
+  if (tok !== V.tok && !skip) return null;
+  return bad || skip ? "device" : "gemini";
 }
 function prefetchVoices(script){
   if (!useGeminiTTS() || !script) return;
@@ -1874,7 +1904,7 @@ function say(line, tok){
       if (V.muted || !window.speechSynthesis){ silent(); return; }
       const ss = speechSynthesis;
       if (ss.speaking || ss.pending){ ss.cancel(); setTimeout(() => browserVoice(attempt), 160); return; }
-      const u = new SpeechSynthesisUtterance(txt); u.lang = "de-DE"; u.rate = c.rate * V.rate; u.pitch = c.pitch; const vo = voiceFor(c); if (vo) u.voice = vo;
+      const u = new SpeechSynthesisUtterance(txt); u.lang = "de-DE"; u.rate = c.rate * V.rate; u.pitch = c.pitch; const vo = V.dev?.[line.wer] || voiceFor(c); if (vo) u.voice = vo;
       let started = false;
       u.onstart = () => { started = true; markStarted(line.wer); clearTimeout(t); t = setTimeout(done, est * 2.5 + 4000); };
       u.onend = () => { if (started) done(); };
@@ -1885,37 +1915,38 @@ function say(line, tok){
       clearTimeout(guard); guard = setTimeout(() => { if (fin || started) return; try { ss.cancel(); } catch {} if (attempt < 1) setTimeout(() => browserVoice(attempt + 1), 250); else { done(false); noSound(); } }, 2500);
     };
     if (V.muted){ silent(); return; }
-    // 1) Claude-Stimmen
-    if (TTSC){
-      V.cur = {cancel(){ TTSC.stop().catch(() => {}); done(false); }};
-      guard = setTimeout(() => { if (!fin && !V.started){ TTSC.stop().catch(() => {}); browserVoice(); } }, 9000);
-      TTSC.speak([{text:txt, voice:VOICE_CLAUDE[line.wer] || "airy", language:"de"}], {rate:V.rate, language:"de"}).then(() => { markStarted(line.wer); done(); }).catch(e => {
-        if (fin) return; clearTimeout(guard);
-        if (e?.code === "not_granted"){ TTSC = null; V.muted = true; renderVideo(); silent(); return; }
-        if (e?.code === "stopped" && e?.reason !== "replaced"){ done(false); return; }
-        if (e?.code === "unavailable") TTSC = null;
-        browserVoice();
-      });
-      return;
+    // 1) Claude-Stimmen (bei Fehler: Satz nur als Untertitel, KEIN Wechsel zur Computerstimme)
+    if (V.engine === "claude" && TTSC){
+      const claudeSay = (attempt = 0) => {
+        V.cur = {cancel(){ TTSC?.stop().catch(() => {}); done(false); }};
+        clearTimeout(guard); guard = setTimeout(() => { if (!fin && !V.started){ TTSC?.stop().catch(() => {}); attempt < 1 ? claudeSay(attempt + 1) : silent(); } }, 9000);
+        TTSC.speak([{text:txt, voice:VOICE_CLAUDE[line.wer] || "airy", language:"de"}], {rate:V.rate, language:"de"}).then(() => { markStarted(line.wer); done(); }).catch(e => {
+          if (fin) return; clearTimeout(guard);
+          if (e?.code === "not_granted"){ V.muted = true; renderVideo(); silent(); return; }
+          if (e?.code === "stopped" && e?.reason !== "replaced"){ done(false); return; }
+          attempt < 1 ? setTimeout(() => claudeSay(attempt + 1), 300) : silent();
+        });
+      };
+      claudeSay(); return;
     }
-    // 2) Google-KI-Stimmen
-    const tid = "tts-" + hashStr(line.wer + "|" + txt);
-    if (useGeminiTTS() || ttsMem.has(tid)){
+    // 2) Google-KI-Stimmen (alle Sätze sind vorab erzeugt)
+    if (V.engine === "gemini"){
       let cancelled = false; V.cur = {cancel(){ cancelled = true; done(false); }};
-      Promise.race([geminiSpeech(txt, line.wer), new Promise(r => setTimeout(() => r(null), 15000))]).then(blob => {
+      const play = (attempt = 0) => Promise.race([geminiSpeech(txt, line.wer), new Promise(r => setTimeout(() => r(null), 20000))]).then(blob => {
         if (cancelled || fin) return;
-        if (!blob || !audioEl){ browserVoice(); return; }
+        if (!blob || !audioEl){ attempt < 1 ? setTimeout(() => play(attempt + 1), 1500) : silent(); return; }
         const url = URL.createObjectURL(blob), a = audioEl;
         const clean = () => { a.onplaying = a.onended = a.onerror = null; URL.revokeObjectURL(url); };
+        const retry = () => { clean(); if (fin) return; attempt < 1 ? play(attempt + 1) : silent(); };
         a.onplaying = () => { markStarted(line.wer); clearTimeout(t); t = setTimeout(() => { clean(); done(); }, est * 3 + 6000); };
         a.onended = () => { clean(); done(); };
-        a.onerror = () => { clean(); browserVoice(); };
+        a.onerror = retry;
         V.cur = {cancel(){ try { a.pause(); } catch {} clean(); done(false); }};
         a.src = url; a.playbackRate = V.rate; try { a.preservesPitch = true; } catch {}
-        a.play().catch(() => { clean(); browserVoice(); });
-        guard = setTimeout(() => { if (!fin && !V.started){ try { a.pause(); } catch {} clean(); browserVoice(); } }, 4000);
+        a.play().catch(retry);
+        clearTimeout(guard); guard = setTimeout(() => { if (!fin && !V.started){ try { a.pause(); } catch {} retry(); } }, 5000);
       });
-      return;
+      play(); return;
     }
     // 3) Stimme des Geräts
     browserVoice();
@@ -1949,12 +1980,21 @@ function renderVideo(){
     </div>
     <div class="vctl"><button class="vbtn" data-act="vPrev" aria-label="Zurück">${ic("back", 22)}</button><button class="vbtn main" data-act="${V.playing ? "vPause" : "vPlay"}" aria-label="Play/Pause">${ic(V.playing ? "pause" : "play", 24, V.playing ? 2.4 : 0)}</button><button class="vbtn" data-act="vNext" aria-label="Weiter">${ic("chev", 22)}</button>
       <span class="sp"></span><button class="vbtn txt" data-act="vRate">${V.rate}×</button><button class="vbtn ${V.subs ? "on" : ""}" data-act="vSubs" aria-label="Untertitel">${ic("chat", 20)}</button><button class="vbtn ${MUSIC.on ? "on" : ""}" data-act="vMusic" aria-label="Konzentrationsmusik">${ic("music", 20)}</button><button class="vbtn ${V.muted ? "" : "on"}" data-act="vMute" aria-label="Ton">${ic(V.muted ? "mute" : "sound", 20)}</button></div></div>`;
+  if (V.prep) $("#vboard").insertAdjacentHTML("beforeend", `<div class="vnosound"><div>${ic("sound", 34, 2)}</div><b>Stimmen werden vorbereitet…</b><p>${V.prep.n} von ${V.prep.of} Sätzen${V.prep.wait ? " · kurz warten (Google-Limit)" : ""}<br>Damit Frau Lea und Max das ganze Video mit derselben Stimme sprechen.</p><div class="vend"><button class="vpill" data-act="vPrepSkip">Mit Handy-Stimme starten</button></div></div>`);
   if (line && V.playing && V.started) setTalking(line.wer);
   if (V.nosound) $("#vboard").insertAdjacentHTML("beforeend", `<div class="vnosound"><div>${ic("mute", 34, 2)}</div><b>Kein Ton?</b><p>Prüf den <b>Stummschalter</b> seitlich am iPhone und dreh die <b>Lautstärke</b> hoch.</p><div class="vend"><button class="vpill" data-act="vRetry">${ic("refresh", 18)}Nochmal mit Ton</button><button class="vpill" data-act="vSilent">Ohne Ton weiter</button></div></div>`);
 }
 function stopVideo(){ V.tok++; V.cur?.cancel?.(); try { speechSynthesis.cancel(); } catch {} try { TTSC?.stop().catch(() => {}); } catch {} V.playing = false; V.cd = 0; musicStop(); }
 async function runVideo(){
-  const tok = ++V.tok; V.playing = true; V.end = false; musicStart();
+  const tok = ++V.tok; V.playing = true; V.end = false;
+  if (!V.engine && !V.muted){
+    if (TTSC) V.engine = "claude";
+    else if (geminiPossible() || videoLines(V.s).every(([t, w]) => ttsMem.has("tts-" + hashStr(w + "|" + t)))){ const e = await prepareVoices(tok); if (!e) return; V.engine = e; }
+    else V.engine = "device";
+    if (V.engine === "device"){ await voicesReady(); V.dev = {lea:voiceFor(CAST.lea), max:voiceFor(CAST.max)}; }
+    if (tok !== V.tok) return;
+  }
+  musicStart();
   while (V.idx < V.s.szenen.length){
     const sc = V.s.szenen[V.idx], lines = sc.dialog || [], nb = bulletsOf(sc);
     V.rev = 0; V.line = -1; V.ans = false; V.cd = 0; renderVideo();
@@ -1973,7 +2013,7 @@ async function runVideo(){
 }
 function openVideo(script, color){
   if (!script?.szenen?.length) return;
-  Object.assign(V, {s:script, idx:0, playing:false, line:-1, rev:0, ans:false, cd:0, end:false, nosound:false, started:false, color:color || "#4f46e5"});
+  Object.assign(V, {s:script, idx:0, playing:false, line:-1, rev:0, ans:false, cd:0, end:false, nosound:false, started:false, engine:null, dev:null, prep:null, prepSkip:false, color:color || "#4f46e5"});
   const el = $("#video"); el.hidden = false; renderVideo(); document.body.style.overflow = "hidden";
   prefetchVoices(script);
 }
@@ -2923,6 +2963,7 @@ const A = {
   tVideoNew: () => { const it = item(S.openId); it.videoStale = true; testVideo(it, true); },
   vPlay: () => { unlockAudio(); V.nosound = false; if (V.end){ V.idx = 0; V.end = false; } runVideo(); },
   vRetry: () => { unlockAudio(); V.nosound = false; V.muted = false; runVideo(); },
+  vPrepSkip: () => { V.prepSkip = true; },
   vSilent: () => { V.nosound = false; V.muted = true; runVideo(); },
   vPause: () => { stopVideo(); V.line = -1; renderVideo(); },
   vNext: () => { unlockAudio(); const was = V.playing; stopVideo(); V.end = false; V.idx = Math.min(V.s.szenen.length - 1, V.idx + 1); V.line = -1; V.rev = 0; V.ans = false; if (was) runVideo(); else renderVideo(); },
